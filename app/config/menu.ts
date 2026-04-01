@@ -12,8 +12,20 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
   {
-    title: '2026/3/31',
-    path: '/day1',
+    title: 'wagmi',
+    path: '/wagmi',
+    icon: HomeIcon,
+    type: 'link'
+  },
+  {
+    title: 'ethers',
+    path: '/ethers',
+    icon: HomeIcon,
+    type: 'link'
+  },
+  {
+    title: 'viem',
+    path: '/viem',
     icon: HomeIcon,
     type: 'link'
   }
