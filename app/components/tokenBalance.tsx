@@ -25,9 +25,12 @@ export default function TokenBalance({ contractAddress, address, funcName }: Tok
     },
   });
   useEffect(() => {
+    console.log("balanceData", balanceData)
     if (balanceData) {
       const formattedBalance = BalanceFormatter.format(balanceData)
       setMyBalance(formattedBalance ?? "loading...")
+    } else {
+      setMyBalance(`查询失败: ${error ? error.message : "未知错误"}`);
     }
   }, [balanceData]);
   const handleGetBalance = () => {
@@ -37,9 +40,12 @@ export default function TokenBalance({ contractAddress, address, funcName }: Tok
   const handleRefresh = async () => {
     setMyBalance("loading...");
     const { data: result } = await refetch();
+    console.log("refetch result", result)
     if (result) {
       const formattedBalance = BalanceFormatter.format(result)
       setMyBalance(formattedBalance)
+    } else {
+      setMyBalance("查询失败");
     }
   };
   const getStatusText = () => {
