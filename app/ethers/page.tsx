@@ -6,34 +6,34 @@ export default function Home() {
     console.log("111")
   };
 
-// 连接钱包
-const connectWallet = async () => {
+  // 连接钱包
+  const connectWallet = async () => {
     // 1. 先检查是否已经有可用的账户（不弹窗）
     let accounts = await window.ethereum.request({ method: 'eth_accounts' });
 
     if (accounts.length > 0) {
-        // 已有授权，直接使用
-        console.log('已连接账户:', accounts[0]);
-        return accounts[0];
+      // 已有授权，直接使用
+      console.log('已连接账户:', accounts[0]);
+      return accounts[0];
     }
 
     // 2. 如果没有，再尝试请求连接，并捕获 4001 错误
     try {
-        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        console.log('新连接账户:', accounts[0]);
-        return accounts[0];
-    } catch (error) {
-        // 捕获并明确区分错误类型
-        if (error.code === 4001) {
-            // 这种情况通常是用户主动拒绝了弹窗，或者是前面提到的“挂起”状态
-            console.warn('连接请求被拒绝或挂起。请检查 MetaMask 插件是否有待处理的操作。');
-            alert('请打开 MetaMask 插件，完成或取消之前的连接请求，然后刷新页面重试。');
-        } else {
-            console.error('连接钱包失败:', error);
-        }
-        throw error;
+      accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      console.log('新连接账户:', accounts[0]);
+      return accounts[0];
+    } catch (error: any) {
+      // 捕获并明确区分错误类型
+      if (error.code === 4001) {
+        // 这种情况通常是用户主动拒绝了弹窗，或者是前面提到的“挂起”状态
+        console.warn('连接请求被拒绝或挂起。请检查 MetaMask 插件是否有待处理的操作。');
+        alert('请打开 MetaMask 插件，完成或取消之前的连接请求，然后刷新页面重试。');
+      } else {
+        console.error('连接钱包失败:', error);
+      }
+      throw error;
     }
-};
+  };
 
   return (
     <div>
@@ -64,8 +64,8 @@ const connectWallet = async () => {
         </p>
       </div>
       <button onClick={connectWallet}>
-          连接钱包
-        </button>
+        连接钱包
+      </button>
     </div>
   );
 }
