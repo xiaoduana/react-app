@@ -1,31 +1,16 @@
 'use client'
 
-// 声明 window.ethereum 类型
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
 import { createPublicClient, http, createWalletClient, custom } from 'viem'
 import { mainnet } from 'viem/chains'
 
-// 1. 创建 Public Client 用于读数据
-const publicClient = createPublicClient({
+const client = createPublicClient({
   chain: mainnet,
-  transport: http('https://rpc.sepolia.org') // RPC 节点地址
-})
-
-
-// 3. 创建 Wallet Client 用于写数据 (连接 MetaMask)
-const walletClient = createWalletClient({
-  chain: mainnet,
-  transport: custom(typeof window !== 'undefined' && window.ethereum ? window.ethereum : undefined) // 使用浏览器注入的钱包
+  transport: http(),
 })
 export default function Home() {
   const handleGetBalance = async () => {
-    const balance = await publicClient.getBalance({ address: '0x8C91C3685A31d4d2995e5285b72F24E91F4Ed08B' })
-    console.log('Balance:', balance)
+    const blockNumber = await client.getBlockNumber() 
+    console.log('blockNumber:', blockNumber)
   }
   return (
     <div>
