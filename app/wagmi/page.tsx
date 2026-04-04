@@ -1,11 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { erc20Abi } from 'viem';  // viem 内置了 ERC-20 的 ABI
-import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract, useReadContract } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi'
 
 import { Providers } from '@/app/components/providers'
 import { SendEth } from '@/app/components/sendEth'
 import TokenBalance from '@/app/components/tokenBalance'
+import { ERC20Transfer } from '@/app/components/ERC20Transfer'
 
 import { BalanceFormatter } from '@/utils/base'
 export default function Home() {
@@ -16,7 +16,6 @@ export default function Home() {
     address: address,
     chainId: 11155111,  // Sepolia 的链 ID
   })   // 自动获取余额并缓存
-  const { writeContract, isPending } = useWriteContract() // 写入合约
 
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
   const [myIsConnectedStatus, setMyIsConnectedStatus] = useState<boolean>(false)
@@ -40,6 +39,11 @@ export default function Home() {
   useEffect(() => {
     setMyIsConnectedStatus(isConnected)
   }, [isConnected])
+
+  const getComByAdress = () => {
+    if (!address) return "未连接"
+    return (<ERC20Transfer tokenAddress="0x7e134B3DF532e8426b21e08118D8ad57f9aC2269" tokenDecimals={18} />)
+  }
 
 
   return (
@@ -75,6 +79,9 @@ export default function Home() {
             <p>
               5. 实现ERC20token的转账功能
             </p>
+            <div>
+              {getComByAdress()}
+            </div>
           </div>
           <button onClick={() => disconnect()}>断开</button>
         </>

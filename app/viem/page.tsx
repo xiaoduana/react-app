@@ -1,23 +1,85 @@
 'use client'
 
-import { createPublicClient, http, createWalletClient, custom } from 'viem'
+import { useState, useEffect } from "react"
+import { createPublicClient, http, erc20Abi, formatUnits, formatEther } from 'viem';
 import { mainnet } from 'viem/chains'
 
+import { connectWallet, BalanceFormatter } from '@/utils/base'
+const tokenAddress = '0x7e134b3df532e8426b21e08118d8ad57f9ac2269';
 const client = createPublicClient({
   chain: mainnet,
-  transport: http(),
+  transport: http("https://eth-sepolia.g.alchemy.com/v2/7_9-RkcEaiyusV_6I6cTx"),
 })
 export default function Home() {
-  const handleGetBalance = async () => {
-    const blockNumber = await client.getBlockNumber() 
-    console.log('blockNumber:', blockNumber)
+  const [myBalance, setMyBalance] = useState<string | null>("loading...")
+  const [address, setAddress] = useState<any>(null)
+
+  const getBalance = async () => {
+    console.log("查询地址:", address);
+    if (!address) {
+      console.log("钱包地址未获取");
+      return;
+    }
+    // 2. 调用 getBalance 方法
+    const balanceWei = await client.getBalance({
+      address: address,
+    });
+
+    // 3. 将 Wei 转换为 Ether
+    const balanceEther = formatEther(balanceWei);
+    setMyBalance(balanceEther);
   }
+
+  const getTokenBalance = async () => {
+    console.log("查询地址:", address);
+    if (!address) {
+      console.log("钱包地址未获取");
+      return;
+    }
+    // 读取 ERC-20 合约的 balanceOf 函数
+    const balance = await client.readContract({
+      address: tokenAddress,
+      abi: erc20Abi,        // viem 内置的标准 ERC-20 ABI
+      functionName: 'balanceOf',
+      args: [address],
+    });
+
+    // 获取代币精度 (decimals)，用于格式化
+    const decimals = await client.readContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: 'decimals',
+    });
+
+    // 格式化输出，第二个参数是精度
+    const formattedBalance = formatUnits(balance, decimals);
+    console.log(`DAI 余额: ${formattedBalance} DAI`);
+  }
+
+  const getWallerMsg = async () => {
+    try {
+      const account = await connectWallet();
+      console.log('连接成功，账户地址:', account);
+      setAddress(account);
+    } catch (error) {
+      console.error('连接钱包失败:', error);
+    }
+  };
+
+  useEffect(() => {
+    getWallerMsg();
+  }, []);
+
+  useEffect(() => {
+    // getTokenBalance();
+    getBalance()
+  }, [address]);
   return (
     <div>
       <p>viem</p>
       <div>
-        <p style={{ cursor: 'pointer', color: '#1677ff' }} onClick={handleGetBalance}>
-          1. 使用 交互库连接以太坊测试网，查询一个地址的余额。
+        <p>
+          1. 使用 交互库连接以太坊测试网，查询一个地址的余额{myBalance}。
         </p>
       </div>
       <div>
@@ -40,6 +102,9 @@ export default function Home() {
           5. 实现ERC20token的转账功能
         </p>
       </div>
+      <button onClick={getWallerMsg}>
+        连接钱包
+      </button>
     </div>
   );
 }
