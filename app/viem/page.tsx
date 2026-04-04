@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { createPublicClient, http, erc20Abi, formatUnits, formatEther } from 'viem';
 import { mainnet } from 'viem/chains'
 
+import { ERC20TransferByViem } from '@/app/components/ERC20TransferByViem'
+
 import { connectWallet, BalanceFormatter } from '@/utils/base'
 const tokenAddress = '0x7e134b3df532e8426b21e08118d8ad57f9ac2269';
 const client = createPublicClient({
@@ -13,6 +15,7 @@ const client = createPublicClient({
 export default function Home() {
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
   const [address, setAddress] = useState<any>(null)
+  const [contractBalance, setContractBalance] = useState<string | null>(null)
 
   const getBalance = async () => {
     console.log("查询地址:", address);
@@ -36,6 +39,7 @@ export default function Home() {
       console.log("钱包地址未获取");
       return;
     }
+    setContractBalance("loading...");
     // 读取 ERC-20 合约的 balanceOf 函数
     const balance = await client.readContract({
       address: tokenAddress,
@@ -54,6 +58,7 @@ export default function Home() {
     // 格式化输出，第二个参数是精度
     const formattedBalance = formatUnits(balance, decimals);
     console.log(`DAI 余额: ${formattedBalance} DAI`);
+    setContractBalance(formattedBalance ?? "查询失败");
   }
 
   const getWallerMsg = async () => {
@@ -71,7 +76,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // getTokenBalance();
     getBalance()
   }, [address]);
   return (
@@ -86,11 +90,13 @@ export default function Home() {
         <p>
           2. 发送 ETH 到另一个地址
         </p>
+        <ERC20TransferByViem />
       </div>
       <div>
         <p>
           3.调用一个 ERC-20 合约的 balanceOf 方法。
         </p>
+        <span onClick={getTokenBalance}>获取余额{contractBalance}</span>
       </div>
       <div>
         <p>
