@@ -4,8 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { menuItems, MenuItem } from '@/app/config/menu'
-import { 
-  ChevronLeftIcon, 
+import {
+  ChevronLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 
@@ -56,7 +56,7 @@ export default function Sidebar({ isCollapsed = false, onToggle }: SidebarProps)
               {!isCollapsed && <span className="text-sm">{item.title}</span>}
             </div>
             {!isCollapsed && hasChildren && (
-              <ChevronRightIcon 
+              <ChevronRightIcon
                 className={`
                   w-4 h-4 transition-transform duration-200
                   ${isExpanded ? 'rotate-90' : ''}
@@ -64,7 +64,7 @@ export default function Sidebar({ isCollapsed = false, onToggle }: SidebarProps)
               />
             )}
           </button>
-          
+
           {!isCollapsed && isExpanded && (
             <div className="ml-4 mt-1 pl-2 border-l-2 border-gray-200 dark:border-gray-700">
               {item.children?.map((child: any) => renderMenuItem(child, level + 1))}

@@ -1,21 +1,23 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { createPublicClient, http, erc20Abi, formatUnits, formatEther } from 'viem';
+import { createPublicClient, http, erc20Abi, formatEther, parseAbi } from 'viem';
 import { mainnet } from 'viem/chains'
 
 import { ERC20TransferByViem } from '@/app/components/ERC20TransferByViem'
+import { SendEthByViem } from '@/app/components/sendEthByViem'
 
 import { connectWallet, BalanceFormatter } from '@/utils/base'
-const tokenAddress = '0x7e134b3df532e8426b21e08118d8ad57f9ac2269';
+const tokenAddress = '0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8';
 const client = createPublicClient({
   chain: mainnet,
-  transport: http("https://eth-sepolia.g.alchemy.com/v2/7_9-RkcEaiyusV_6I6cTx"),
+  transport: http(process.env.NEXT_PUBLIC_SEPOLIA),
 })
 export default function Home() {
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
   const [address, setAddress] = useState<any>(null)
   const [contractBalance, setContractBalance] = useState<string | null>(null)
+  const [logs, setLogs] = useState<string[]>([])
 
   const getBalance = async () => {
     console.log("查询地址:", address);
@@ -55,11 +57,34 @@ export default function Home() {
       functionName: 'decimals',
     });
 
+    const symbol = await client.readContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: 'symbol',
+    });
+
     // 格式化输出，第二个参数是精度
-    const formattedBalance = formatUnits(balance, decimals);
+    const formattedBalance = BalanceFormatter.format(balance, { decimals: Number(decimals), symbol: symbol });
     console.log(`DAI 余额: ${formattedBalance} DAI`);
     setContractBalance(formattedBalance ?? "查询失败");
   }
+
+  // 2. 定义 ERC-20 的 Transfer 事件 ABI
+  const abi = parseAbi(['event Transfer(address indexed from, address indexed to, uint256 value)']);
+
+  // 3. 监听事件
+  const unwatch = client.watchContractEvent({
+    address: tokenAddress, // USDC 合约地址
+    abi: abi,
+    eventName: 'Transfer',
+    onLogs: (logs) => {
+      for (const log of logs) {
+        const { from, to, value } = log.args;
+        console.log(`[Viem 实时] 从 ${from} 转账 ${value?.toString()} 到 ${to}`);
+        setLogs((prevLogs) => [...prevLogs, `从 ${from} 转账 ${value?.toString()} 到 ${to}`]);
+      }
+    },
+  });
 
   const getWallerMsg = async () => {
     try {
@@ -81,7 +106,7 @@ export default function Home() {
   return (
     <div>
       <p>viem</p>
-      <div>
+      <div className="margin-bottom-4">
         <p>
           1. 使用 交互库连接以太坊测试网，查询一个地址的余额{myBalance}。
         </p>
@@ -90,7 +115,7 @@ export default function Home() {
         <p>
           2. 发送 ETH 到另一个地址
         </p>
-        <ERC20TransferByViem />
+        <SendEthByViem address={address} />
       </div>
       <div>
         <p>
@@ -102,11 +127,17 @@ export default function Home() {
         <p>
           4.监听 ERC-20 合约的 Transfer 事件
         </p>
+        <div>
+          {logs.map((log, index) => (
+            <p key={index}>{log}</p>
+          ))}
+        </div>
       </div>
       <div>
         <p>
           5. 实现ERC20token的转账功能
         </p>
+        <ERC20TransferByViem address={address} />
       </div>
       <button onClick={getWallerMsg}>
         连接钱包

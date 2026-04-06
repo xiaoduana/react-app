@@ -11,6 +11,7 @@ export default function Home() {
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
   const [address, setAddress] = useState<string | null>(null)
   const [contractBalance, setContractBalance] = useState<string | null>(null)
+  const [logs, setLogs] = useState<string[]>([])
 
   const getBalance = async () => {
     if (window.ethereum) {
@@ -43,26 +44,55 @@ export default function Home() {
     }
     setContractBalance("loading...");
     await getContract({
-      rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/7_9-RkcEaiyusV_6I6cTx",
-      contractAddress: "0x7e134b3df532e8426b21e08118d8ad57f9ac2269",
+      rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA!,
+      contractAddress: "0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8",
       walletAddress: address,
       abi: [
-        "function balanceOf(address owner) view returns (uint256)"
+        "function balanceOf(address owner) view returns (uint256)",
+        "function symbol() view returns (string)",
+        "function decimals() view returns (uint8)"
       ],
       func: async (contract) => {
         console.log("合约实例666:", contract);
         // 调用合约方法查询余额
         const balanceWei = await contract.balanceOf(address);
-        // USDT 精度为 6 位，所以用 formatUnits
-        const balanceFormatted = ethers.formatUnits(balanceWei, 6);
+        const sysmbol = await contract.symbol();
+        const decimals = await contract.decimals();
+        console.log("查询到的余额（Wei）:", balanceWei.toString(), "符号:", sysmbol);
+        const balanceFormatted = BalanceFormatter.format(balanceWei, { decimals: Number(decimals), symbol: sysmbol });
         setContractBalance(balanceFormatted ?? "查询失败");
       }
     });
   };
 
+  const getLogs = async () => {
+    // 1. 连接 Provider (建议使用 WebSocketProvider 以保证实时性)
+    const provider = new ethers.WebSocketProvider('https://eth-sepolia.g.alchemy.com/v2/7_9-RkcEaiyusV_6I6cTx');
+
+    // 2. 定义 ABI (仅定义需要的事件即可)
+    const abi = [
+      "event Transfer(address indexed from, address indexed to, uint256 value)"
+    ];
+
+    // 3. 实例化合约
+    const contractAddress = "0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8";
+    const contract = new ethers.Contract(contractAddress, abi, provider);
+
+    // 4. 监听事件
+    contract.on("Transfer", (from, to, value, event) => {
+      // 注意：value 是 BigNumber/BigInt 类型，需要 format 展示
+      console.log(`[Ethers 实时] ${from} -> ${to} : ${value.toString()}`);
+      setLogs((prevLogs) => [...prevLogs, `${from} -> ${to} : ${value.toString()}`]);
+      // 打印交易哈希
+      console.log(`Tx Hash: ${event.transactionHash}`);
+    });
+  }
+
+
   useEffect(() => {
     getWallerMsg();
     getBalance();
+    getLogs();
   }, []);
 
 
@@ -90,6 +120,11 @@ export default function Home() {
         <p>
           4.监听 ERC-20 合约的 Transfer 事件
         </p>
+        <div>
+          {logs.map((log, index) => (
+            <p key={index}>{log}</p>
+          ))}
+        </div>
       </div>
       <div>
         <p>

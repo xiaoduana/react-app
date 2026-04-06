@@ -1,11 +1,21 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useBalance, useWatchContractEvent } from 'wagmi'
 
 import { Providers } from '@/app/components/providers'
 import { SendEth } from '@/app/components/sendEth'
 import TokenBalance from '@/app/components/tokenBalance'
 import { ERC20Transfer } from '@/app/components/ERC20Transfer'
+const abi = [{
+  type: 'event',
+  name: 'Transfer',
+  inputs: [
+    { indexed: true, name: 'from', type: 'address' },
+    { indexed: true, name: 'to', type: 'address' },
+    { indexed: false, name: 'value', type: 'uint256' },
+  ],
+}];
+const contractAddress = "0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8";
 
 import { BalanceFormatter } from '@/utils/base'
 export default function Home() {
@@ -19,6 +29,7 @@ export default function Home() {
 
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
   const [myIsConnectedStatus, setMyIsConnectedStatus] = useState<boolean>(false)
+  const [logs, setLogs] = useState<string[]>([])
 
   useEffect(() => {
     if (balanceData) {
@@ -36,13 +47,27 @@ export default function Home() {
     }
   };
 
+  useWatchContractEvent({
+    address: contractAddress,
+    abi: abi,
+    eventName: 'Transfer',
+    onLogs(logs: any) {
+      // logs 是最新批次的事件数组
+      logs.forEach((log: any) => {
+        const { from, to, value } = log.args;
+        console.log(`[Wagmi] 检测到转账: ${from} 发送 ${value.toString()} 给 ${to}`);
+        setLogs((prevLogs) => [...prevLogs, `${from} -> ${to} : ${value.toString()}`]);
+      });
+    }
+  })
+
   useEffect(() => {
     setMyIsConnectedStatus(isConnected)
   }, [isConnected])
 
   const getComByAdress = () => {
     if (!address) return "未连接"
-    return (<ERC20Transfer tokenAddress="0x7e134B3DF532e8426b21e08118D8ad57f9aC2269" tokenDecimals={18} />)
+    return (<ERC20Transfer tokenAddress={contractAddress} tokenDecimals={18} />)
   }
 
 
@@ -51,10 +76,10 @@ export default function Home() {
       {myIsConnectedStatus ? (
         <>
           <p>wagmi</p>
-          <div>
+          <div className='mar1gin-bottom-10'>
             <p>
               1. 使用 交互库连接以太坊测试网，查询一个地址的余额。
-              <span style={{ color: 'blue' }}>{myBalance}</span>
+              <span className='text-blue-500'>{myBalance}</span>
               <span onClick={handleRefresh}>刷新余额</span>
             </p>
           </div>
@@ -68,12 +93,17 @@ export default function Home() {
             <p>
               3.调用一个 ERC-20 合约的 balanceOf 方法。
             </p>
-            <TokenBalance contractAddress="0x7e134B3DF532e8426b21e08118D8ad57f9aC2269" address={address} funcName="balanceOf" />
+            <TokenBalance contractAddress={contractAddress} address={address} funcName="balanceOf" />
           </div>
           <div>
             <p>
               4.监听 ERC-20 合约的 Transfer 事件
             </p>
+            <div>
+              {logs.map((log, index) => (
+                <p key={index}>{log}</p>
+              ))}
+            </div>
           </div>
           <div>
             <p>

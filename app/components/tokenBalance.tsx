@@ -24,10 +24,29 @@ export default function TokenBalance({ contractAddress, address, funcName }: Tok
       enabled: shouldFetch && !!address, // 点击按钮后才启用
     },
   });
+  const {
+    data: symbol,        // 余额数据（BigInt 类型）
+  } = useReadContract({
+    abi: erc20Abi,
+    address: contractAddress,
+    functionName: "symbol",
+    query: {
+      enabled: address, // 点击按钮后才启用
+    },
+  });
+  const {
+    data: decimals,        // 余额数据（BigInt 类型）
+  } = useReadContract({
+    abi: erc20Abi,
+    address: contractAddress,
+    functionName: "decimals",
+    query: {
+      enabled: address, // 点击按钮后才启用
+    },
+  });
   useEffect(() => {
-    console.log("balanceData", balanceData)
     if (balanceData) {
-      const formattedBalance = BalanceFormatter.format(balanceData)
+      const formattedBalance = BalanceFormatter.format(balanceData, { decimals: decimals, symbol: symbol })
       setMyBalance(formattedBalance ?? "loading...")
     } else {
       setMyBalance(`查询失败: ${error ? error.message : "未知错误"}`);
@@ -42,7 +61,7 @@ export default function TokenBalance({ contractAddress, address, funcName }: Tok
     const { data: result } = await refetch();
     console.log("refetch result", result)
     if (result) {
-      const formattedBalance = BalanceFormatter.format(result)
+      const formattedBalance = BalanceFormatter.format(balanceData, { decimals: decimals, symbol: symbol })
       setMyBalance(formattedBalance)
     } else {
       setMyBalance("查询失败");

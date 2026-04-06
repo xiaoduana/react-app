@@ -24,8 +24,8 @@ export function ERC20TransferByEthers({ address }: { address: any }) {
     // 获取签名器
     const signerObj = await getSigner();
     await getContract({
-      rpcUrl: "https://eth-sepolia.g.alchemy.com/v2/7_9-RkcEaiyusV_6I6cTx",
-      contractAddress: "0x7e134b3df532e8426b21e08118d8ad57f9ac2269",
+      rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA!,
+      contractAddress: "0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8",
       walletAddress: address,
       abi: [
         "function balanceOf(address owner) view returns (uint256)",
