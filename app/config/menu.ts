@@ -1,5 +1,6 @@
-import { 
-  BookmarkIcon,
+import {
+  Bars3BottomLeftIcon,
+  BookmarkIcon
 } from '@heroicons/react/24/outline'
 
 export interface MenuItem {
@@ -14,40 +15,40 @@ export const menuItems: MenuItem[] = [
   {
     title: 'wagmi',
     path: '/wagmi',
-    icon: BookmarkIcon,
+    icon: Bars3BottomLeftIcon,
     type: 'link'
   },
   {
     title: 'ethers',
     path: '/ethers',
-    icon: BookmarkIcon,
+    icon: Bars3BottomLeftIcon,
     type: 'link'
   },
   {
     title: 'viem',
     path: '/viem',
-    icon: BookmarkIcon,
+    icon: Bars3BottomLeftIcon,
     type: 'link'
   },
   {
     title: 'pledgeContract',
     path: '/pledgeContract',
-    icon: BookmarkIcon,    
+    icon: BookmarkIcon,
     type: 'sub',
     children: [{
       title: 'stake',
       path: '/pledgeContract/stake',
-      icon: BookmarkIcon,
+      icon: Bars3BottomLeftIcon,
       type: 'link'
-    },{
+    }, {
       title: 'withdraw',
       path: '/pledgeContract/withdraw',
-      icon: BookmarkIcon,
+      icon: Bars3BottomLeftIcon,
       type: 'link'
-    },{
+    }, {
       title: 'claim',
       path: '/pledgeContract/claim',
-      icon: BookmarkIcon,
+      icon: Bars3BottomLeftIcon,
       type: 'link'
     }]
   },

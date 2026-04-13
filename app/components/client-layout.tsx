@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Sidebar from '@/app/components/Sidebar'
+import { HeadBar } from './headBar'
 
 export default function ClientLayout({
   children,
@@ -16,14 +17,17 @@ export default function ClientLayout({
         isCollapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-      <main className={`
+      <div className='w-full'>
+        <HeadBar />
+        <main className={`
         flex-1 transition-all duration-300
         ${sidebarCollapsed ? 'ml-0' : 'ml-0'}
       `}>
-        <div className="p-6">
-          {children}
-        </div>
-      </main>
+          <div className="p-6">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
