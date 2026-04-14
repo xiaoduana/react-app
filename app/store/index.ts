@@ -14,6 +14,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({                       // 只持久化部分字段
         connectionStatus: state.connectionStatus,
         walletName: state.walletName,
+        walletAdress: state.walletAdress
         // 不持久化 setWallet 和 resetWallet 函数
       }),
     }

@@ -23,6 +23,11 @@ import { BalanceFormatter } from '@/utils/base'
 export default function Home() {
 
   const { connectionStatus, walletAdress } = useAppStore()
+  useEffect(() => {
+    if (walletAdress && connectionStatus) {
+      handleRefresh()
+    }
+  }, [walletAdress, connectionStatus])
   const { data: balanceData, refetch } = useBalance({
     address: walletAdress,
     chainId: 11155111,  // Sepolia 的链 ID
@@ -30,9 +35,6 @@ export default function Home() {
 
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
   const [logs, setLogs] = useState<string[]>([])
-
-  console.log("myBalance-----", myBalance)
-
 
   useEffect(() => {
     if (balanceData) {
@@ -58,7 +60,6 @@ export default function Home() {
       // logs 是最新批次的事件数组
       logs.forEach((log: any) => {
         const { from, to, value } = log.args;
-        console.log(`[Wagmi] 检测到转账: ${from} 发送 ${value.toString()} 给 ${to}`);
         setLogs((prevLogs) => [...prevLogs, `${from} -> ${to} : ${value.toString()}`]);
       });
     }

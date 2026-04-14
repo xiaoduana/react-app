@@ -59,7 +59,6 @@ export default function TokenBalance({ contractAddress, address, funcName }: Tok
   const handleRefresh = async () => {
     setMyBalance("loading...");
     const { data: result } = await refetch();
-    console.log("refetch result", result)
     if (result) {
       const formattedBalance = BalanceFormatter.format(balanceData, { decimals: decimals, symbol: symbol })
       setMyBalance(formattedBalance)

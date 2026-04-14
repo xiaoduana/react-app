@@ -4,7 +4,7 @@ import { AppState } from './types'
 export const createWalletSlice: StateCreator<AppState, [], [], AppState> = (set, get, store) => ({
   connectionStatus: null,     // 初始值
   walletName: '',             // 初始值
-  walletAdress: "",
+  walletAdress: undefined,
 
   setWallet: (data) => set((state) => ({
     ...state,
@@ -14,6 +14,6 @@ export const createWalletSlice: StateCreator<AppState, [], [], AppState> = (set,
   resetWallet: () => set({
     connectionStatus: null,
     walletName: '',
-    walletAdress: ""
+    walletAdress: undefined
   }),
 })
