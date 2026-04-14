@@ -5,7 +5,7 @@ import { injected } from 'wagmi/connectors';
 export const config = createConfig({
   chains: [mainnet, sepolia],
   ssr: true, // 👈 关键：必须设置为 true
-  multiInjectedProviderDiscovery: true, 
+  multiInjectedProviderDiscovery: true,
   connectors: [
     injected(), // 使用 injected 连接器即可，它会自动发现所有钱包
     // ... 如果需要 WalletConnect 等其他连接器，可以继续添加

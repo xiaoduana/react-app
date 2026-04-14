@@ -23,16 +23,6 @@ export default function Home() {
     }
   };
 
-  const getWallerMsg = async () => {
-    try {
-      const account = await connectWallet();
-      console.log('连接成功，账户地址:', account);
-      setAddress(account);
-    } catch (error) {
-      console.error('连接钱包失败:', error);
-    }
-  };
-
   const handleRefresh = async () => {
     getBalance();
   }
@@ -90,7 +80,6 @@ export default function Home() {
 
 
   useEffect(() => {
-    getWallerMsg();
     getBalance();
     getLogs();
   }, []);
@@ -132,9 +121,6 @@ export default function Home() {
         </p>
         <ERC20TransferByEthers address={address} />
       </div>
-      <button onClick={getWallerMsg}>
-        连接钱包
-      </button>
     </div >
   );
 }

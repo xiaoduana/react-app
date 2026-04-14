@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { createPublicClient, http, erc20Abi, formatEther, parseAbi } from 'viem';
 import { mainnet } from 'viem/chains'
 
+import { useAppStore } from '@/app/store/index'
+
 import { ERC20TransferByViem } from '@/app/components/ERC20TransferByViem'
 import { SendEthByViem } from '@/app/components/sendEthByViem'
 
@@ -18,6 +20,8 @@ export default function Home() {
   const [address, setAddress] = useState<any>(null)
   const [contractBalance, setContractBalance] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
+
+  const connectionStatus = useAppStore((state) => state.connectionStatus)
 
   const getBalance = async () => {
     console.log("查询地址:", address);
@@ -36,9 +40,8 @@ export default function Home() {
   }
 
   const getTokenBalance = async () => {
-    console.log("查询地址:", address);
-    if (!address) {
-      console.log("钱包地址未获取");
+    if (!connectionStatus) {
+      console.log("钱包未连接");
       return;
     }
     setContractBalance("loading...");
@@ -86,20 +89,6 @@ export default function Home() {
     },
   });
 
-  const getWallerMsg = async () => {
-    try {
-      const account = await connectWallet();
-      console.log('连接成功，账户地址:', account);
-      setAddress(account);
-    } catch (error) {
-      console.error('连接钱包失败:', error);
-    }
-  };
-
-  useEffect(() => {
-    getWallerMsg();
-  }, []);
-
   useEffect(() => {
     getBalance()
   }, [address]);
@@ -139,9 +128,6 @@ export default function Home() {
         </p>
         <ERC20TransferByViem address={address} />
       </div>
-      <button onClick={getWallerMsg}>
-        连接钱包
-      </button>
     </div>
   );
 }
