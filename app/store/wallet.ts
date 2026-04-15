@@ -5,6 +5,8 @@ export const createWalletSlice: StateCreator<AppState, [], [], AppState> = (set,
   connectionStatus: null,     // 初始值
   walletName: '',             // 初始值
   walletAdress: undefined,
+  chainId: undefined,
+  rpcUrls: [],
 
   setWallet: (data) => set((state) => ({
     ...state,
@@ -14,6 +16,8 @@ export const createWalletSlice: StateCreator<AppState, [], [], AppState> = (set,
   resetWallet: () => set({
     connectionStatus: null,
     walletName: '',
-    walletAdress: undefined
+    walletAdress: undefined,
+    chainId: undefined,
+    rpcUrls: []
   }),
 })

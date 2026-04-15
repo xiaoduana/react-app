@@ -4,22 +4,20 @@ import { useSwitchChain, useChainId } from 'wagmi';
 import { ListBox, Select, Label, Key } from "@heroui/react";
 import { WalletList } from "@/app/components/walletConfig/walletList";
 import { useAppStore } from '@/app/store/index'
+import { SUPPORTED_NETWORKS } from "@/JSON/netWork"
 
 export function HeadBar() {
-  const chainId = useChainId();
-  const { chains, switchChain, isPending } = useSwitchChain();
-  const [selectedChain, setSelectedChain] = useState<Key | null>(chainId);
+  const { switchChain, isPending } = useSwitchChain();
+  const [selectedChain, setSelectedChain] = useState<Key | null>();
 
-  // 订阅 connectionStatus
-  const connectionStatus = useAppStore((state) => state.connectionStatus)
+  const { connectionStatus, setWallet, chainId: storeChainId } = useAppStore()
 
   // 同步当前网络
   useEffect(() => {
-    if (chainId) {
-      setSelectedChain(chainId);
+    if (storeChainId) {
+      setSelectedChain(storeChainId);
     }
-    // to do
-  }, [chainId]);
+  }, [storeChainId]);
 
   useEffect(() => {
     if (!connectionStatus) {
@@ -36,7 +34,7 @@ export function HeadBar() {
     const targetChainId = Number(key);
     if (isNaN(targetChainId)) return;
 
-    if (targetChainId === chainId) {
+    if (targetChainId === storeChainId) {
       console.log('已经是当前网络');
       return;
     }
@@ -47,8 +45,13 @@ export function HeadBar() {
     if (switchChain) {
       switchChain({ chainId: targetChainId });
     }
-  };
 
+    const arr = SUPPORTED_NETWORKS.find(item => item.chainId === key)?.rpcUrls || []
+    setWallet({
+      chainId: targetChainId,
+      rpcUrls: [...arr]
+    })
+  };
   return (
     <div className="flex justify-end items-center h-20 bg-blue-400 shadow">
       <Select
@@ -64,19 +67,19 @@ export function HeadBar() {
         </Select.Trigger>
         <Select.Popover>
           <ListBox aria-label="change chain">
-            {chains.map((chain) => (
+            {SUPPORTED_NETWORKS.map((chain: any) => (
               <ListBox.Item
-                key={chain.id}
-                id={chain.id}
-                textValue={chain.name}
+                key={chain.chainId}
+                id={chain.chainId}
+                textValue={chain.chainName}
               >
                 <div className="flex items-center justify-between w-full">
                   <div className="flex flex-col">
-                    <Label>{chain.name}</Label>
+                    <Label>{chain.chainName}</Label>
 
                   </div>
                   <div>
-                    {chain.id === chainId && (
+                    {chain.chainId === storeChainId && (
                       <span className="text-xs text-green-500">当前网络</span>
                     )}
                   </div>

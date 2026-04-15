@@ -32,7 +32,6 @@ export function WalletList() {
   const { connect, connectors } = useConnect()        // 连接钱包
   const { disconnect } = useDisconnect()              // 断开连接
   const { address } = useAccount()        // 自动获取账户状态
-  console.log(address)
   const toggleModal = () => {
     if (connectionStatus) {
       disconnect()
@@ -41,7 +40,6 @@ export function WalletList() {
         walletName: "未连接钱包",
         walletAdress: undefined
       })
-      console.log("end------")
     } else {
       setIsOpen(true)
     }

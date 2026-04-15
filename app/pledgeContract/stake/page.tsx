@@ -1,19 +1,21 @@
 'use client'
 import { useState } from "react"
 
-import { useAccount, useWriteContract, useReadContract } from "wagmi";
+import { useWriteContract, useReadContract } from "wagmi";
 import { parseEther } from 'viem'
 
 import { stakeAbi as abi } from "../abi"
 import { BalanceFormatter } from '@/utils/base'
 
+import { useAppStore } from '@/app/store/index'
+
 const targetContractAddress = "0xF136927bB54709e548fC77F7ee9947b5Ef3136ff"
 
 export default function Home() {
+  const { connectionStatus, walletAdress, chainId, rpcUrls } = useAppStore()
   const [value, setValue] = useState('');
   const [stakedDataAddress, setStakedDataAddress] = useState<`0x${string}` | undefined>(undefined);
   const [totalStaked, setTotalStaked] = useState<bigint | undefined>(undefined);
-  const { address } = useAccount();
   const { data: hash, writeContract, isPending, error } = useWriteContract();
 
   const { refetch } = useReadContract({
@@ -37,7 +39,7 @@ export default function Home() {
   // 3. 处理表单提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address) {
+    if (!walletAdress) {
       alert("请连接钱包后再进行操作");
       return;
     }
@@ -60,7 +62,7 @@ export default function Home() {
     <div>
       <div>
         <div>钱包转账</div>
-        <div>当前链接地址: {address}</div>
+        <div>当前链接地址: {walletAdress}</div>
         <form onSubmit={(e) => handleSubmit(e)}>
           <input
             placeholder="质押金额"

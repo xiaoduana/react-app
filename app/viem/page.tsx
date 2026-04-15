@@ -2,36 +2,41 @@
 
 import { useState, useEffect } from "react"
 import { createPublicClient, http, erc20Abi, formatEther, parseAbi } from 'viem';
-import { mainnet } from 'viem/chains'
 
 import { useAppStore } from '@/app/store/index'
 
 import { ERC20TransferByViem } from '@/app/components/ERC20TransferByViem'
 import { SendEthByViem } from '@/app/components/sendEthByViem'
 
-import { connectWallet, BalanceFormatter } from '@/utils/base'
+import { BalanceFormatter } from '@/utils/base'
 const tokenAddress = '0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8';
-const client = createPublicClient({
-  chain: mainnet,
-  transport: http(process.env.NEXT_PUBLIC_SEPOLIA),
-})
+
 export default function Home() {
+  const { connectionStatus, walletAdress, chainId, rpcUrls } = useAppStore()
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
-  const [address, setAddress] = useState<any>(null)
   const [contractBalance, setContractBalance] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
+  console.log(process.env.NEXT_PUBLIC_SEPOLIA)
+  const [client, setClient] = useState(createPublicClient({
+    transport: http(process.env.NEXT_PUBLIC_SEPOLIA),
+  }))
 
-  const connectionStatus = useAppStore((state) => state.connectionStatus)
+  useEffect(() => {
+    console.log(rpcUrls[0])
+    setClient(createPublicClient({
+      transport: http(rpcUrls[0] || process.env.NEXT_PUBLIC_SEPOLIA),
+    }))
+  }, [chainId])
+
 
   const getBalance = async () => {
-    console.log("查询地址:", address);
-    if (!address) {
+    if (!walletAdress) {
       console.log("钱包地址未获取");
       return;
     }
     // 2. 调用 getBalance 方法
     const balanceWei = await client.getBalance({
-      address: address,
+      address: walletAdress,
     });
 
     // 3. 将 Wei 转换为 Ether
@@ -40,36 +45,40 @@ export default function Home() {
   }
 
   const getTokenBalance = async () => {
-    if (!connectionStatus) {
-      console.log("钱包未连接");
-      return;
+    try {
+      if (!connectionStatus) {
+        console.log("钱包未连接");
+        return;
+      }
+      setContractBalance("loading...");
+      // 读取 ERC-20 合约的 balanceOf 函数
+      const balance = await client.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,        // viem 内置的标准 ERC-20 ABI
+        functionName: 'balanceOf',
+        args: [walletAdress!],
+      });
+
+      // 获取代币精度 (decimals)，用于格式化
+      const decimals = await client.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'decimals',
+      });
+
+      const symbol = await client.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'symbol',
+      });
+
+      // 格式化输出，第二个参数是精度
+      const formattedBalance = BalanceFormatter.format(balance, { decimals: Number(decimals), symbol: symbol });
+      console.log(`DAI 余额: ${formattedBalance} DAI`);
+      setContractBalance(formattedBalance ?? "查询失败");
+    } catch (error) {
+      setContractBalance("查询失败");
     }
-    setContractBalance("loading...");
-    // 读取 ERC-20 合约的 balanceOf 函数
-    const balance = await client.readContract({
-      address: tokenAddress,
-      abi: erc20Abi,        // viem 内置的标准 ERC-20 ABI
-      functionName: 'balanceOf',
-      args: [address],
-    });
-
-    // 获取代币精度 (decimals)，用于格式化
-    const decimals = await client.readContract({
-      address: tokenAddress,
-      abi: erc20Abi,
-      functionName: 'decimals',
-    });
-
-    const symbol = await client.readContract({
-      address: tokenAddress,
-      abi: erc20Abi,
-      functionName: 'symbol',
-    });
-
-    // 格式化输出，第二个参数是精度
-    const formattedBalance = BalanceFormatter.format(balance, { decimals: Number(decimals), symbol: symbol });
-    console.log(`DAI 余额: ${formattedBalance} DAI`);
-    setContractBalance(formattedBalance ?? "查询失败");
   }
 
   // 2. 定义 ERC-20 的 Transfer 事件 ABI
@@ -91,7 +100,7 @@ export default function Home() {
 
   useEffect(() => {
     getBalance()
-  }, [address]);
+  }, [walletAdress]);
   return (
     <div>
       <p>viem</p>
@@ -104,7 +113,7 @@ export default function Home() {
         <p>
           2. 发送 ETH 到另一个地址
         </p>
-        <SendEthByViem address={address} />
+        <SendEthByViem address={walletAdress} />
       </div>
       <div>
         <p>
@@ -126,7 +135,7 @@ export default function Home() {
         <p>
           5. 实现ERC20token的转账功能
         </p>
-        <ERC20TransferByViem address={address} />
+        <ERC20TransferByViem address={walletAdress} />
       </div>
     </div>
   );

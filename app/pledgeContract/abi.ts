@@ -1278,6 +1278,10 @@ export const stakeAbi = [
         "internalType": "uint256",
         "name": "pendingMetaNode",
         "type": "uint256"
+      },
+      {
+        "name": "requests",
+        "type": "tuple[]"
       }
     ],
     "stateMutability": "view",

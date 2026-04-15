@@ -22,15 +22,15 @@ const contractAddress = "0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8";
 import { BalanceFormatter } from '@/utils/base'
 export default function Home() {
 
-  const { connectionStatus, walletAdress } = useAppStore()
+  const { connectionStatus, chainId, walletAdress } = useAppStore()
   useEffect(() => {
     if (walletAdress && connectionStatus) {
       handleRefresh()
     }
-  }, [walletAdress, connectionStatus])
+  }, [walletAdress, connectionStatus, chainId])
   const { data: balanceData, refetch } = useBalance({
     address: walletAdress,
-    chainId: 11155111,  // Sepolia 的链 ID
+    chainId: chainId,  // Sepolia 的链 ID
   })   // 自动获取余额并缓存
 
   const [myBalance, setMyBalance] = useState<string | null>("loading...")

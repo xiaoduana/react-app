@@ -1,31 +1,29 @@
 'use client'
-import { useEffect, useState, useRef } from "react"
-import { useAccount, useWriteContract, useBlockNumber } from "wagmi";
+import { useEffect, useState } from "react"
+import { useWriteContract, useReadContract, useBlockNumber } from "wagmi";
 import { parseEther } from 'viem'
 import { stakeAbi as abi } from "../abi"
+import { useAppStore } from '@/app/store/index'
+import { BalanceFormatter } from '@/utils/base'
 const targetContractAddress = "0xF136927bB54709e548fC77F7ee9947b5Ef3136ff"
 export default function Home() {
+  const { connectionStatus, walletAdress } = useAppStore()
   const [value, setValue] = useState('');
-
-  const [targetBlock, setTargetBlock] = useState<bigint | null>(null);
-  const [unStake, setUnStake] = useState(false);
-  const [isWaiting, setIsWaiting] = useState(false);
-
-  const [dealTime, setDealTime] = useState(0)
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const { address } = useAccount();
+  const [requestAmount, setRequestAmount] = useState("")
+  const [pendingAmount, setPendingAmount] = useState("")
 
   const { data: unStakeHash, writeContract: unStakeContract, isPending: unStakePending, error: unStakeError } = useWriteContract();
   const { data: writeDrawHash, writeContract: writeDrawContract, isPending: writeDrawPending, error: writeDrawError } = useWriteContract();
-
   const { data: currentBlock } = useBlockNumber({ watch: true });
 
-
   const withdraw = async () => {
-    if (!targetBlock || dealTime > 0) {
-      alert("请先等待质押金额解锁完成")
-      return;
+    if (Number(pendingAmount) <= 0) {
+      alert('暂无可提取金额，请稍后再试')
+      return
+    }
+    if (requestAmount > pendingAmount) {
+      alert('申请金额还未全部解锁，请稍后再试')
+      return
     }
     try {
       // 调用合约的质押函数
@@ -35,46 +33,40 @@ export default function Home() {
         functionName: 'withdraw', // 替换为实际的质押函数名
         args: [BigInt(0)], // 根据合约函数参数调整
       })
+      setRequestAmount("")
+      setPendingAmount("")
     } catch (error) {
       console.error("交易失败:", error);
     }
   }
 
-  const getCurrentBlockNumber = () => {
-    if (currentBlock) {
-      const targetBlockNumber = currentBlock + BigInt(20); // 监听未来的区块
-      setTargetBlock(targetBlockNumber);
-      setIsWaiting(true);
-      setDealTime(20 * 12)
-      console.log(`当前区块: ${currentBlock}, 监听目标区块: ${targetBlockNumber}`);
-    }
-  };
+  const { refetch: withdrawAmountRefetch } = useReadContract({
+    address: targetContractAddress,
+    abi: abi,
+    functionName: 'withdrawAmount',
+    args: [BigInt(0), walletAdress as `0x${string}`], // 根据合约函数参数调整
+  })
+
+  const getAmount = async () => {
+    const { data } = await withdrawAmountRefetch()
+    const r = data ? data[0] : ""
+    setRequestAmount(BalanceFormatter.format(BigInt(r)))
+    const p = data ? data[0] : ""
+    console.log(r, p)
+    setPendingAmount(BalanceFormatter.format(BigInt(p)))
+  }
+
 
   useEffect(() => {
-    if (dealTime > 0) {
-      timerRef.current = setInterval(() => {
-        setDealTime(prevTime => {
-          if (prevTime <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [currentBlock]);
+    getAmount()
+  }, [currentBlock])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address) {
+    if (!connectionStatus) {
       alert("请连接钱包后再进行操作");
       return;
     }
-    setUnStake(true)
     try {
       // 4. 调用合约的质押函数
       unStakeContract({
@@ -83,8 +75,6 @@ export default function Home() {
         functionName: 'unstake', // 替换为实际的质押函数名
         args: [BigInt(0), parseEther(value)], // 根据合约函数参数调整
       })
-      setUnStake(false)
-      getCurrentBlockNumber()
     } catch (error) {
       console.error("交易失败:", error);
     }
@@ -107,11 +97,10 @@ export default function Home() {
         {unStakeError && <p style={{ color: 'red' }}>交易失败: {unStakeError.message}</p>}
         {unStakeHash && <p>交易成功，交易哈希: {unStakeHash}</p>}
       </form>
-      <div>
-        <button disabled={isWaiting}>
-          目标区块{targetBlock}-当前区块{currentBlock}-约剩余时间{dealTime}
-        </button>
-      </div>
+      {requestAmount && <div>
+        <p>用户申请解押的总金额{requestAmount}</p>
+        <p>已经解锁、可以立即提取的金额{pendingAmount}</p>
+      </div>}
 
 
       <button disabled={writeDrawPending} onClick={withdraw}>

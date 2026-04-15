@@ -1,5 +1,4 @@
 import { ethers } from 'ethers'
-import { erc20Abi } from 'viem';  // viem 内置了 ERC-20 的 ABI
 
 declare global {
   interface Window {
@@ -66,6 +65,7 @@ interface GetContractParams {
   abi: Array<any>;
   signerObj?: any, // 可选的签名器对象，如果需要发送交易则必须提供
   func?: (contract: ethers.Contract) => any; // 可选的回调函数，用于在获取合约实例后执行特定操作
+  err?: (err: any) => any
 }
 
 export const getContract = async ({
@@ -74,7 +74,8 @@ export const getContract = async ({
   walletAddress,
   abi,
   signerObj,
-  func
+  func,
+  err
 }: GetContractParams) => {
   const provider = new ethers.JsonRpcProvider(rpcUrl);
 
@@ -85,13 +86,19 @@ export const getContract = async ({
   try {
     const code = await provider.getCode(tokenAddress);
     if (code === "0x") {
-      console.error("地址不是合约！");
+      err && err("地址不是合约！")
       return;
     }
 
     const tokenContract = new ethers.Contract(tokenAddress, tokenABI, signerObj || provider);
     console.log("-------合约实例:", tokenContract);
-    if (func) func(tokenContract);
+    try {
+      func && func(tokenContract);
+    } catch (error) {
+      err && err(error)
+      console.log(error)
+    }
+
   } catch (error) {
     console.error("查询失败:", error);
   }

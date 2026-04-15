@@ -5,38 +5,42 @@ import { ethers } from 'ethers'
 import { SendEthByEthers } from '@/app/components/sendEthByEthers'
 import { ERC20TransferByEthers } from '@/app/components/ERC20TransferByEthers'
 
-import { connectWallet, BalanceFormatter, getContract } from '@/utils/base'
+import { useAppStore } from '@/app/store/index'
+
+import { BalanceFormatter, getContract } from '@/utils/base'
 export default function Home() {
+  const { connectionStatus, walletAdress, chainId, rpcUrls } = useAppStore()
 
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
-  const [address, setAddress] = useState<string | null>(null)
   const [contractBalance, setContractBalance] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
 
   const getBalance = async () => {
-    if (window.ethereum) {
+    if (window.ethereum && walletAdress) {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const balanceData = await provider.getBalance("0x8C91C3685A31d4d2995e5285b72F24E91F4Ed08B");
+      const balanceData = await provider.getBalance(walletAdress);
       console.log("balanceData", balanceData)
       const formattedBalance = BalanceFormatter.format(balanceData)
       setMyBalance(formattedBalance ?? "获取失败")
     }
   };
 
+  useEffect(() => { getBalance(); }, [chainId])
+
   const handleRefresh = async () => {
     getBalance();
   }
 
   const handleGetContract = async () => {
-    if (!address) {
+    if (!walletAdress) {
       console.error("钱包地址未获取");
       return;
     }
     setContractBalance("loading...");
     await getContract({
-      rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA!,
+      rpcUrl: rpcUrls[0]!,
       contractAddress: "0xc50cC31ec0E7A2f67Af1619CF399745b5a4F77A8",
-      walletAddress: address,
+      walletAddress: walletAdress,
       abi: [
         "function balanceOf(address owner) view returns (uint256)",
         "function symbol() view returns (string)",
@@ -45,12 +49,16 @@ export default function Home() {
       func: async (contract) => {
         console.log("合约实例666:", contract);
         // 调用合约方法查询余额
-        const balanceWei = await contract.balanceOf(address);
+        const balanceWei = await contract.balanceOf(walletAdress);
         const sysmbol = await contract.symbol();
         const decimals = await contract.decimals();
         console.log("查询到的余额（Wei）:", balanceWei.toString(), "符号:", sysmbol);
         const balanceFormatted = BalanceFormatter.format(balanceWei, { decimals: Number(decimals), symbol: sysmbol });
         setContractBalance(balanceFormatted ?? "查询失败");
+      },
+      err(err) {
+        alert(err)
+        setContractBalance("查询失败");
       }
     });
   };
@@ -97,7 +105,7 @@ export default function Home() {
         <p>
           2. 发送 ETH 到另一个地址
         </p>
-        <SendEthByEthers isConnectedStatus={!!address} onSendStatusChange={handleRefresh} />
+        <SendEthByEthers isConnectedStatus={connectionStatus} onSendStatusChange={handleRefresh} />
       </div>
       <div>
         <p>
@@ -119,7 +127,7 @@ export default function Home() {
         <p>
           5. 实现ERC20token的转账功能
         </p>
-        <ERC20TransferByEthers address={address} />
+        <ERC20TransferByEthers address={walletAdress} />
       </div>
     </div >
   );
