@@ -7,6 +7,7 @@ export const createWalletSlice: StateCreator<AppState, [], [], AppState> = (set,
   walletAdress: undefined,
   chainId: undefined,
   rpcUrls: [],
+  targetBlock: 0,
 
   setWallet: (data) => set((state) => ({
     ...state,
@@ -18,6 +19,7 @@ export const createWalletSlice: StateCreator<AppState, [], [], AppState> = (set,
     walletName: '',
     walletAdress: undefined,
     chainId: undefined,
-    rpcUrls: []
+    rpcUrls: [],
+    targetBlock: 0
   }),
 })

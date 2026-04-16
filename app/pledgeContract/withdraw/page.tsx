@@ -7,7 +7,7 @@ import { useAppStore } from '@/app/store/index'
 import { BalanceFormatter } from '@/utils/base'
 const targetContractAddress = "0xF136927bB54709e548fC77F7ee9947b5Ef3136ff"
 export default function Home() {
-  const { connectionStatus, walletAdress } = useAppStore()
+  const { connectionStatus, walletAdress, setWallet, targetBlock } = useAppStore()
   const [value, setValue] = useState('');
   const [requestAmount, setRequestAmount] = useState("")
   const [pendingAmount, setPendingAmount] = useState("")
@@ -17,6 +17,10 @@ export default function Home() {
   const { data: currentBlock } = useBlockNumber({ watch: true });
 
   const withdraw = async () => {
+    if (Number(currentBlock) < targetBlock) {
+      alert("还未达到指定锁定区块高度，请稍后再试")
+      return
+    }
     if (Number(pendingAmount) <= 0) {
       alert('暂无可提取金额，请稍后再试')
       return
@@ -40,6 +44,14 @@ export default function Home() {
     }
   }
 
+  const { data: poolData } = useReadContract({
+    address: targetContractAddress,
+    abi: abi,
+    functionName: 'pool',
+    args: [BigInt(0)], // 根据合约函数参数调整
+  })
+  const blockHeight = poolData ? Number(poolData[6]) : 0
+
   const { refetch: withdrawAmountRefetch } = useReadContract({
     address: targetContractAddress,
     abi: abi,
@@ -52,14 +64,20 @@ export default function Home() {
     const r = data ? data[0] : ""
     setRequestAmount(BalanceFormatter.format(BigInt(r)))
     const p = data ? data[0] : ""
-    console.log(r, p)
     setPendingAmount(BalanceFormatter.format(BigInt(p)))
   }
-
 
   useEffect(() => {
     getAmount()
   }, [currentBlock])
+
+  useEffect(() => {
+    if (unStakeHash) {
+      setWallet({
+        targetBlock: Number(currentBlock) + blockHeight
+      })
+    }
+  }, [unStakeHash])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +93,7 @@ export default function Home() {
         functionName: 'unstake', // 替换为实际的质押函数名
         args: [BigInt(0), parseEther(value)], // 根据合约函数参数调整
       })
+
     } catch (error) {
       console.error("交易失败:", error);
     }
@@ -97,6 +116,12 @@ export default function Home() {
         {unStakeError && <p style={{ color: 'red' }}>交易失败: {unStakeError.message}</p>}
         {unStakeHash && <p>交易成功，交易哈希: {unStakeHash}</p>}
       </form>
+      {
+        unStakeHash && <div>
+          <p>当前区块{Number(currentBlock)}</p>
+          <p>目标解锁区块{targetBlock}</p>
+        </div>
+      }
       {requestAmount && <div>
         <p>用户申请解押的总金额{requestAmount}</p>
         <p>已经解锁、可以立即提取的金额{pendingAmount}</p>

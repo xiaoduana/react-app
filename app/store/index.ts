@@ -16,7 +16,8 @@ export const useAppStore = create<AppState>()(
         walletName: state.walletName,
         walletAdress: state.walletAdress,
         chainId: state.chainId,
-        rpcUrls: state.rpcUrls
+        rpcUrls: state.rpcUrls,
+        targetBlock: state.targetBlock
         // 不持久化 setWallet 和 resetWallet 函数
       }),
     }

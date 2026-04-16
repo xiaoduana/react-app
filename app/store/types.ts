@@ -3,7 +3,8 @@ export interface WalletMsg {
   walletName: string                 // 钱包名称
   walletAdress: `0x${string}` | undefined
   chainId: number | undefined,
-  rpcUrls: (string | undefined)[]
+  rpcUrls: (string | undefined)[],
+  targetBlock: number
 }
 
 export interface AppState extends WalletMsg {
