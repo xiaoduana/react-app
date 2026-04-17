@@ -117,7 +117,7 @@ export default function Home() {
         {unStakeHash && <p>交易成功，交易哈希: {unStakeHash}</p>}
       </form>
       {
-        unStakeHash && <div>
+        targetBlock && <div>
           <p>当前区块{Number(currentBlock)}</p>
           <p>目标解锁区块{targetBlock}</p>
         </div>
