@@ -16,13 +16,11 @@ export default function Home() {
   const [myBalance, setMyBalance] = useState<string | null>("loading...")
   const [contractBalance, setContractBalance] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
-  console.log(process.env.NEXT_PUBLIC_SEPOLIA)
   const [client, setClient] = useState(createPublicClient({
     transport: http(process.env.NEXT_PUBLIC_SEPOLIA),
   }))
 
   useEffect(() => {
-    console.log(rpcUrls[0])
     setClient(createPublicClient({
       transport: http(rpcUrls[0] || process.env.NEXT_PUBLIC_SEPOLIA),
     }))
@@ -74,7 +72,6 @@ export default function Home() {
 
       // 格式化输出，第二个参数是精度
       const formattedBalance = BalanceFormatter.format(balance, { decimals: Number(decimals), symbol: symbol });
-      console.log(`DAI 余额: ${formattedBalance} DAI`);
       setContractBalance(formattedBalance ?? "查询失败");
     } catch (error) {
       setContractBalance("查询失败");
@@ -100,7 +97,8 @@ export default function Home() {
 
   useEffect(() => {
     getBalance()
-  }, [walletAdress]);
+    getTokenBalance()
+  }, [connectionStatus, walletAdress, chainId]);
   return (
     <div>
       <p>viem</p>

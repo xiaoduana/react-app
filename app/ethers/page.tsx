@@ -25,7 +25,10 @@ export default function Home() {
     }
   };
 
-  useEffect(() => { getBalance(); }, [chainId])
+  useEffect(() => {
+    getBalance();
+    handleGetContract()
+  }, [connectionStatus, walletAdress, chainId])
 
   const handleRefresh = async () => {
     getBalance();
@@ -33,7 +36,7 @@ export default function Home() {
 
   const handleGetContract = async () => {
     if (!walletAdress) {
-      console.error("钱包地址未获取");
+      console.log("钱包地址未获取");
       return;
     }
     setContractBalance("loading...");

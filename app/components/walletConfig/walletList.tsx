@@ -59,7 +59,6 @@ export function WalletList() {
     state.close()
   }
 
-
   useEffect(() => {
     if (!connectors) return;
     const map: Record<string, any> = {};
