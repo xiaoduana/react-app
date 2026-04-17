@@ -31,7 +31,8 @@ export function WalletList() {
   const state = useOverlayState();
   const { connect, connectors } = useConnect()        // 连接钱包
   const { disconnect } = useDisconnect()              // 断开连接
-  const { address } = useAccount()        // 自动获取账户状态
+  const { address, isConnected } = useAccount()        // 自动获取账户状态
+
   const toggleModal = () => {
     if (connectionStatus) {
       disconnect()
@@ -67,6 +68,15 @@ export function WalletList() {
     });
     setWalletMap(map);
   }, [connectors]); // 依赖 connectors，当它变化时重新构建
+
+  useEffect(() => {
+    if (address && isConnected) {
+      setWallet({
+        connectionStatus: true,
+        walletAdress: address
+      })
+    }
+  }, [address, isConnected]);
 
   return (
     <div>
