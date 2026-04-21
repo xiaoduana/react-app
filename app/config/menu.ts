@@ -52,4 +52,21 @@ export const menuItems: MenuItem[] = [
       type: 'link'
     }]
   },
+  {
+    title: 'SwapV3',
+    path: '/SwapV3',
+    icon: BookmarkIcon,
+    type: 'sub',
+    children: [{
+      title: 'pool',
+      path: '/swapV3/pool',
+      icon: Bars3BottomLeftIcon,
+      type: 'link'
+    }, {
+      title: 'swap',
+      path: '/swapV3/swap',
+      icon: Bars3BottomLeftIcon,
+      type: 'link'
+    }]
+  },
 ]
