@@ -63,6 +63,11 @@ export const menuItems: MenuItem[] = [
       icon: Bars3BottomLeftIcon,
       type: 'link'
     }, {
+      title: 'position',
+      path: '/swapV3/position',
+      icon: Bars3BottomLeftIcon,
+      type: 'link'
+    }, {
       title: 'swap',
       path: '/swapV3/swap',
       icon: Bars3BottomLeftIcon,
