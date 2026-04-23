@@ -1,37 +1,13 @@
+import { useMemo } from "react";
 import { ethers } from 'ethers'
+import { useReadContracts } from 'wagmi';
+import { erc20Abi } from 'viem';
 
 declare global {
   interface Window {
     ethereum: any;
   }
 }
-
-// 连接钱包
-export const connectWallet = async () => {
-  let msg = {};
-  // 1. 先检查是否已经有可用的账户（不弹窗）
-  let accounts = await window.ethereum.request({ method: 'eth_accounts' });
-
-  if (accounts.length > 0) {
-    // 已有授权，直接使用
-    return accounts[0];
-  }
-
-  // 2. 如果没有，再尝试请求连接，并捕获 4001 错误
-  try {
-    accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    return accounts[0];
-  } catch (error: any) {
-    // 捕获并明确区分错误类型
-    if (error.code === 4001) {
-      // 这种情况通常是用户主动拒绝了弹窗，或者是前面提到的“挂起”状态
-      alert('请打开 MetaMask 插件，完成或取消之前的连接请求，然后刷新页面重试。');
-    } else {
-      console.error('连接钱包失败:', error);
-    }
-    throw error;
-  }
-};
 
 export const getSigner = async () => {
   // 1. 检查 MetaMask 是否已安装
@@ -147,3 +123,64 @@ export class BalanceFormatter {
     return parseFloat(balanceEth).toFixed(decimals);
   }
 }
+
+export const getTokenInfo = (positionsData: any) => {
+  const map = new Map();
+  // 1. 从 positions 中收集所有唯一的 token 地址
+  const uniqueTokenAddresses = useMemo(() => {
+    if (!positionsData) return [];
+
+    const addresses = new Set<string>();
+    for (const position of positionsData) {
+      if (position.status === 'success' && position.result) {
+        const [, , token0, token1] = position.result;
+        addresses.add(token0.toLowerCase());
+        addresses.add(token1.toLowerCase());
+      }
+    }
+    return Array.from(addresses);
+  }, [positionsData]);
+
+  // 2. 为每个 token 创建两个调用：symbol 和 decimals
+  const tokenInfoCalls = useMemo(() => {
+    const calls = [];
+    for (const tokenAddress of uniqueTokenAddresses) {
+      calls.push({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'symbol',
+      });
+      calls.push({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'decimals',
+      });
+    }
+    return calls;
+  }, [uniqueTokenAddresses]);
+
+  // 3. 批量获取所有 token 信息
+  const { data: tokenInfoData } = useReadContracts({
+    contracts: tokenInfoCalls,
+    query: { enabled: uniqueTokenAddresses.length > 0 },
+  });
+
+  // 4. 构建 token 地址到信息的映射
+  const tokenInfoMap = useMemo(() => {
+    if (!tokenInfoData) return new Map();
+    for (let i = 0; i < uniqueTokenAddresses.length; i++) {
+      const tokenAddress = uniqueTokenAddresses[i];
+      const symbolResult = tokenInfoData[i * 2];
+      const decimalsResult = tokenInfoData[i * 2 + 1];
+
+      const symbol = symbolResult?.status === 'success' ? symbolResult.result : 'Unknown';
+      const decimals = decimalsResult?.status === 'success' ? decimalsResult.result : 18;
+
+      map.set(tokenAddress, { symbol, decimals });
+    }
+    return map;
+  }, [tokenInfoData, uniqueTokenAddresses]);
+  return tokenInfoMap
+}
+
+
