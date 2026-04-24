@@ -15,8 +15,8 @@ import {
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
-  useAccount,
 } from "wagmi";
+import { positionAbi as abi, poolAbi } from "../abi";
 import { Pool, Position } from "@uniswap/v3-sdk";
 import { Token } from "@uniswap/sdk-core";
 import { useChainId } from "wagmi";
@@ -95,65 +95,6 @@ function computePoolAddress(token0: string, token1: string, fee: number): string
   return "0x...";
 }
 
-// Pool ABI
-const poolAbi = [
-  {
-    inputs: [],
-    name: "slot0",
-    outputs: [
-      { name: "sqrtPriceX96", type: "uint160" },
-      { name: "tick", type: "int24" },
-      { name: "observationIndex", type: "uint16" },
-      { name: "observationCardinality", type: "uint16" },
-      { name: "observationCardinalityNext", type: "uint16" },
-      { name: "feeProtocol", type: "uint8" },
-      { name: "unlocked", type: "bool" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "liquidity",
-    outputs: [{ name: "", type: "uint128" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
-
-// NFT Position Manager ABI (mint 方法)
-const positionManagerAbi = [
-  {
-    name: "mint",
-    type: "function",
-    inputs: [
-      {
-        name: "params",
-        type: "tuple",
-        components: [
-          { name: "token0", type: "address" },
-          { name: "token1", type: "address" },
-          { name: "fee", type: "uint24" },
-          { name: "tickLower", type: "int24" },
-          { name: "tickUpper", type: "int24" },
-          { name: "amount0Desired", type: "uint256" },
-          { name: "amount1Desired", type: "uint256" },
-          { name: "amount0Min", type: "uint256" },
-          { name: "amount1Min", type: "uint256" },
-          { name: "recipient", type: "address" },
-          { name: "deadline", type: "uint256" },
-        ],
-      },
-    ],
-    outputs: [
-      { name: "tokenId", type: "uint256" },
-      { name: "liquidity", type: "uint128" },
-      { name: "amount0", type: "uint256" },
-      { name: "amount1", type: "uint256" },
-    ],
-  },
-] as const;
-
 interface AddLiquidityModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -207,32 +148,32 @@ export function AddLiquidityModal({
     return computePoolAddress(token0, token1, feeTier);
   }, [token0, token1, feeTier]);
 
-  // 获取 pool 的 slot0 数据 - 正确解析元组类型
-  const { data: slot0Raw, refetch: refetchSlot0 } = useReadContract({
-    address: poolAddress as `0x${string}`,
-    abi: poolAbi,
-    functionName: "slot0",
-    query: { enabled: !!poolAddress },
-  });
+  // // 获取 pool 的 slot0 数据 - 正确解析元组类型
+  // const { data: slot0Raw, refetch: refetchSlot0 } = useReadContract({
+  //   address: poolAddress as `0x${string}`,
+  //   abi: poolAbi,
+  //   functionName: "slot0",
+  //   query: { enabled: !!poolAddress },
+  // });
 
-  // 正确解析 slot0 数据（元组转对象）
-  const slot0Data = useMemo(() => {
-    if (!slot0Raw) return null;
-    // slot0Raw 是元组类型 [sqrtPriceX96, tick, ...]
-    const tuple = slot0Raw as unknown as Slot0Tuple;
-    return {
-      sqrtPriceX96: tuple[0],
-      tick: tuple[1],
-    };
-  }, [slot0Raw]);
+  // // 正确解析 slot0 数据（元组转对象）
+  // const slot0Data = useMemo(() => {
+  //   if (!slot0Raw) return null;
+  //   // slot0Raw 是元组类型 [sqrtPriceX96, tick, ...]
+  //   const tuple = slot0Raw as unknown as Slot0Tuple;
+  //   return {
+  //     sqrtPriceX96: tuple[0],
+  //     tick: tuple[1],
+  //   };
+  // }, [slot0Raw]);
 
   // 获取 pool 的流动性
-  const { data: poolLiquidity } = useReadContract({
-    address: poolAddress as `0x${string}`,
-    abi: poolAbi,
-    functionName: "liquidity",
-    query: { enabled: !!poolAddress },
-  });
+  // const { data: poolLiquidity } = useReadContract({
+  //   address: poolAddress as `0x${string}`,
+  //   abi: poolAbi,
+  //   functionName: "liquidity",
+  //   query: { enabled: !!poolAddress },
+  // });
 
   // 检查 token 授权
   const { data: allowance0, refetch: refetchAllowance0 } = useReadContract({
@@ -242,7 +183,6 @@ export function AddLiquidityModal({
     args: [walletAdress as `0x${string}`, NONFUNGIBLE_POSITION_MANAGER as `0x${string}`],
     query: { enabled: !!token0Address && !!walletAdress },
   });
-  console.log("--==++,allowance0", allowance0)
 
   const { data: allowance1, refetch: refetchAllowance1 } = useReadContract({
     address: token1Address as `0x${string}`,
@@ -251,7 +191,6 @@ export function AddLiquidityModal({
     args: [walletAdress as `0x${string}`, NONFUNGIBLE_POSITION_MANAGER as `0x${string}`],
     query: { enabled: !!token1Address && !!walletAdress },
   });
-  console.log("--==++,allowance1", allowance1)
 
   // 授权操作
   const { writeContract: approve0, isPending: isApproving0 } = useWriteContract();
@@ -270,18 +209,14 @@ export function AddLiquidityModal({
 
   // 计算是否需要授权
   const needApprove0 = useMemo(() => {
-    console.log("----")
     if (!amount0 || !allowance0) return false;
     const amount0Raw = parseUnits(amount0, getTokenInfo(token0Address).decimals);
-    console.log(allowance0, amount0Raw)
     return allowance0 < amount0Raw;
   }, [amount0, allowance0, token0Address]);
 
   const needApprove1 = useMemo(() => {
-    console.log("====")
     if (!amount1 || !allowance1) return false;
     const amount1Raw = parseUnits(amount1, getTokenInfo(token1Address).decimals);
-    console.log(allowance1, amount1Raw)
     return allowance1 < amount1Raw;
   }, [amount1, allowance1, token1Address]);
 
@@ -294,143 +229,144 @@ export function AddLiquidityModal({
   }, []);
 
   // 计算流动性
-  const calculateLiquidity = useCallback(async () => {
-    if (
-      !token0 ||
-      !token1 ||
-      !feeTier ||
-      !amount0 ||
-      !amount1 ||
-      !priceLower ||
-      !priceUpper ||
-      !slot0Data ||
-      !poolLiquidity
-    ) {
-      return;
-    }
+  // const calculateLiquidity = useCallback(async () => {
+  //   if (
+  //     !token0 ||
+  //     !token1 ||
+  //     !feeTier ||
+  //     !amount0 ||
+  //     !amount1 ||
+  //     !priceLower ||
+  //     !priceUpper ||
+  //     // !slot0Data ||
+  //     !poolLiquidity
+  //   ) {
+  //     console.log("hhhhhhh")
+  //     return;
+  //   }
+  //   console.log("xxxxxx")
+  //   setIsCalculating(true);
 
-    setIsCalculating(true);
+  //   try {
+  //     const token0Info = getTokenInfo(token0);
+  //     const token1Info = getTokenInfo(token1);
 
-    try {
-      const token0Info = getTokenInfo(token0);
-      const token1Info = getTokenInfo(token1);
+  //     const token0Instance = new Token(
+  //       chainId,
+  //       token0 as `0x${string}`,
+  //       token0Info.decimals,
+  //       token0Info.symbol,
+  //       token0Info.name
+  //     );
+  //     const token1Instance = new Token(
+  //       chainId,
+  //       token1 as `0x${string}`,
+  //       token1Info.decimals,
+  //       token1Info.symbol,
+  //       token1Info.name
+  //     );
 
-      const token0Instance = new Token(
-        chainId,
-        token0 as `0x${string}`,
-        token0Info.decimals,
-        token0Info.symbol,
-        token0Info.name
-      );
-      const token1Instance = new Token(
-        chainId,
-        token1 as `0x${string}`,
-        token1Info.decimals,
-        token1Info.symbol,
-        token1Info.name
-      );
+  //     // const { sqrtPriceX96, tick: currentTick } = slot0Data;
+  //     const poolLiquidityBigInt = poolLiquidity as bigint;
 
-      const { sqrtPriceX96, tick: currentTick } = slot0Data;
-      const poolLiquidityBigInt = poolLiquidity as bigint;
+  //     // 计算 tick 范围
+  //     const priceLowerNum = parseFloat(priceLower);
+  //     const priceUpperNum = parseFloat(priceUpper);
 
-      // 计算 tick 范围
-      const priceLowerNum = parseFloat(priceLower);
-      const priceUpperNum = parseFloat(priceUpper);
+  //     let tickLower = priceToTick(priceLowerNum, token0Info.decimals, token1Info.decimals);
+  //     let tickUpper = priceToTick(priceUpperNum, token0Info.decimals, token1Info.decimals);
 
-      let tickLower = priceToTick(priceLowerNum, token0Info.decimals, token1Info.decimals);
-      let tickUpper = priceToTick(priceUpperNum, token0Info.decimals, token1Info.decimals);
+  //     // 确保 tickLower < tickUpper
+  //     if (tickLower >= tickUpper) {
+  //       [tickLower, tickUpper] = [tickUpper, tickLower];
+  //     }
 
-      // 确保 tickLower < tickUpper
-      if (tickLower >= tickUpper) {
-        [tickLower, tickUpper] = [tickUpper, tickLower];
-      }
+  //     // 确保 tick 是 tickSpacing 的倍数
+  //     const tickSpacing = FEE_TIERS.find((t) => t.value === feeTier)?.tickSpacing || 60;
+  //     const roundedTickLower = Math.floor(tickLower / tickSpacing) * tickSpacing;
+  //     const roundedTickUpper = Math.ceil(tickUpper / tickSpacing) * tickSpacing;
 
-      // 确保 tick 是 tickSpacing 的倍数
-      const tickSpacing = FEE_TIERS.find((t) => t.value === feeTier)?.tickSpacing || 60;
-      const roundedTickLower = Math.floor(tickLower / tickSpacing) * tickSpacing;
-      const roundedTickUpper = Math.ceil(tickUpper / tickSpacing) * tickSpacing;
+  //     // 解析输入金额（注意：如果 token 顺序是反的，需要交换金额）
+  //     let amount0Raw: bigint;
+  //     let amount1Raw: bigint;
 
-      // 解析输入金额（注意：如果 token 顺序是反的，需要交换金额）
-      let amount0Raw: bigint;
-      let amount1Raw: bigint;
+  //     if (isReversed) {
+  //       // 用户选择的顺序与合约顺序相反
+  //       amount0Raw = parseUnits(amount1, token1Info.decimals);
+  //       amount1Raw = parseUnits(amount0, token0Info.decimals);
+  //     } else {
+  //       amount0Raw = parseUnits(amount0, token0Info.decimals);
+  //       amount1Raw = parseUnits(amount1, token1Info.decimals);
+  //     }
 
-      if (isReversed) {
-        // 用户选择的顺序与合约顺序相反
-        amount0Raw = parseUnits(amount1, token1Info.decimals);
-        amount1Raw = parseUnits(amount0, token0Info.decimals);
-      } else {
-        amount0Raw = parseUnits(amount0, token0Info.decimals);
-        amount1Raw = parseUnits(amount1, token1Info.decimals);
-      }
+  //     // 创建 Pool 实例
+  //     // const poolInstance = new Pool(
+  //     //   token0Instance,
+  //     //   token1Instance,
+  //     //   feeTier,
+  //     //   sqrtPriceX96.toString(),
+  //     //   poolLiquidityBigInt.toString(),
+  //     //   currentTick
+  //     // );
 
-      // 创建 Pool 实例
-      const poolInstance = new Pool(
-        token0Instance,
-        token1Instance,
-        feeTier,
-        sqrtPriceX96.toString(),
-        poolLiquidityBigInt.toString(),
-        currentTick
-      );
+  //     // 创建 Position
+  //     // const position = Position.fromAmounts({
+  //     //   pool: poolInstance,
+  //     //   tickLower: roundedTickLower,
+  //     //   tickUpper: roundedTickUpper,
+  //     //   amount0: JSBI.BigInt(amount0Raw.toString()),
+  //     //   amount1: JSBI.BigInt(amount1Raw.toString()),
+  //     //   useFullPrecision: true,
+  //     // });
 
-      // 创建 Position
-      const position = Position.fromAmounts({
-        pool: poolInstance,
-        tickLower: roundedTickLower,
-        tickUpper: roundedTickUpper,
-        amount0: JSBI.BigInt(amount0Raw.toString()),
-        amount1: JSBI.BigInt(amount1Raw.toString()),
-        useFullPrecision: true,
-      });
+  //     // // 计算最小接收数量（滑点保护）
+  //     // const slippageMultiplier = 1 - slippage / 100;
+  //     // const amount0Min = JSBI.multiply(
+  //     //   position.amount0.quotient,
+  //     //   JSBI.BigInt(Math.floor(slippageMultiplier * 10000))
+  //     // );
+  //     // const amount1Min = JSBI.multiply(
+  //     //   position.amount1.quotient,
+  //     //   JSBI.BigInt(Math.floor(slippageMultiplier * 10000))
+  //     // );
 
-      // 计算最小接收数量（滑点保护）
-      const slippageMultiplier = 1 - slippage / 100;
-      const amount0Min = JSBI.multiply(
-        position.amount0.quotient,
-        JSBI.BigInt(Math.floor(slippageMultiplier * 10000))
-      );
-      const amount1Min = JSBI.multiply(
-        position.amount1.quotient,
-        JSBI.BigInt(Math.floor(slippageMultiplier * 10000))
-      );
-
-      setLiquidityInfo({
-        liquidity: position.liquidity.toString(),
-        amount0Min: amount0Min.toString(),
-        amount1Min: amount1Min.toString(),
-        tickLower: roundedTickLower,
-        tickUpper: roundedTickUpper,
-      });
-    } catch (error) {
-      console.error("计算流动性失败:", error);
-    } finally {
-      setIsCalculating(false);
-    }
-  }, [
-    token0,
-    token1,
-    feeTier,
-    amount0,
-    amount1,
-    priceLower,
-    priceUpper,
-    slot0Data,
-    poolLiquidity,
-    chainId,
-    slippage,
-    isReversed,
-    priceToTick,
-  ]);
+  //     setLiquidityInfo({
+  //       liquidity: position.liquidity.toString(),
+  //       amount0Min: amount0Min.toString(),
+  //       amount1Min: amount1Min.toString(),
+  //       tickLower: roundedTickLower,
+  //       tickUpper: roundedTickUpper,
+  //     });
+  //   } catch (error) {
+  //     console.error("计算流动性失败:", error);
+  //   } finally {
+  //     setIsCalculating(false);
+  //   }
+  // }, [
+  //   token0,
+  //   token1,
+  //   feeTier,
+  //   amount0,
+  //   amount1,
+  //   priceLower,
+  //   priceUpper,
+  //   slot0Data,
+  //   poolLiquidity,
+  //   chainId,
+  //   slippage,
+  //   isReversed,
+  //   priceToTick,
+  // ]);
 
   // 当输入变化时重新计算
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (amount0 && amount1 && priceLower && priceUpper && slot0Data) {
-        calculateLiquidity();
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [amount0, amount1, priceLower, priceUpper, slot0Data, calculateLiquidity]);
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     if (amount0 && amount1 && priceLower && priceUpper && slot0Data) {
+  //       calculateLiquidity();
+  //     }
+  //   }, 500);
+  //   return () => clearTimeout(timer);
+  // }, [amount0, amount1, priceLower, priceUpper, slot0Data, calculateLiquidity]);
 
   // 处理授权
   const handleApprove = async (tokenAddress: string, isToken0: boolean) => {
@@ -453,8 +389,8 @@ export function AddLiquidityModal({
       !walletAdress ||
       !token0 ||
       !token1 ||
-      !feeTier ||
-      !liquidityInfo
+      !feeTier
+      // ||!liquidityInfo
     ) {
       return;
     }
@@ -478,19 +414,20 @@ export function AddLiquidityModal({
       token0: token0 as `0x${string}`,
       token1: token1 as `0x${string}`,
       fee: feeTier,
-      tickLower: liquidityInfo.tickLower,
-      tickUpper: liquidityInfo.tickUpper,
+      index: 0,
+      // tickLower: liquidityInfo.tickLower,
+      // tickUpper: liquidityInfo.tickUpper,
       amount0Desired: amount0Desired,
       amount1Desired: amount1Desired,
-      amount0Min: BigInt(liquidityInfo.amount0Min),
-      amount1Min: BigInt(liquidityInfo.amount1Min),
+      // amount0Min: BigInt(liquidityInfo.amount0Min),
+      // amount1Min: BigInt(liquidityInfo.amount1Min),
       recipient: walletAdress as `0x${string}`,
       deadline: BigInt(Math.floor(Date.now() / 1000) + 60 * 20),
     };
 
     mint({
       address: NONFUNGIBLE_POSITION_MANAGER as `0x${string}`,
-      abi: positionManagerAbi,
+      abi: abi,
       functionName: "mint",
       args: [mintParams],
     });
@@ -510,7 +447,10 @@ export function AddLiquidityModal({
       onOpenChange(false);
       onSuccess?.();
     }
-  }, [isSuccess, onOpenChange, onSuccess]);
+  }, [isSuccess]);
+  const init = () => {
+
+  }
 
   // 获取可用的 token 列表
   const availableTokens = useMemo(() => {
@@ -532,11 +472,11 @@ export function AddLiquidityModal({
     priceLower &&
     priceUpper &&
     Number(priceLower) > 0 &&
-    Number(priceUpper) > Number(priceLower) &&
-    liquidityInfo;
+    Number(priceUpper) > Number(priceLower)
+  // && liquidityInfo;
 
   const isProcessing = isApproving0 || isApproving1 || isMinting || isConfirming;
-  console.log(needApprove0, needApprove1)
+  console.log("isValid", isValid, "isProcessing", isProcessing)
   const needAnyApprove = needApprove0 || needApprove1;
 
   return (
@@ -551,7 +491,7 @@ export function AddLiquidityModal({
             <div className="space-y-4">
               {/* Token 选择 */}
               <div>
-                <div className="font-medium mb-2">选择代币对</div>
+                <div className="font-medium mb-2">Deposit amounts</div>
                 <div className="flex gap-2">
                   <Select
                     className="flex-1"
@@ -559,7 +499,6 @@ export function AddLiquidityModal({
                     defaultValue={token0Address ? token0Address : ""}
                     value={token0Address}
                     onChange={(key: Key | null) => {
-                      console.log(key)
                       setToken0Address(key + "");
                     }}
                   >
@@ -612,7 +551,7 @@ export function AddLiquidityModal({
 
               {/* 手续费率 */}
               <div>
-                <div className="font-medium mb-2">手续费率</div>
+                <div className="font-medium mb-2">Fee tier</div>
                 <div className="flex gap-2">
                   {FEE_TIERS.map((tier) => (
                     <Button
@@ -664,7 +603,7 @@ export function AddLiquidityModal({
 
               {/* 价格区间 */}
               <div>
-                <div className="font-medium mb-2">价格区间</div>
+                <div className="font-medium mb-2">Set price range</div>
                 <Card className="w-full" variant="secondary">
                   <Card.Content className="space-y-3">
                     <div className="flex justify-between items-center gap-2">
@@ -684,11 +623,11 @@ export function AddLiquidityModal({
                         className="flex-1"
                       />
                     </div>
-                    {slot0Data && (
+                    {/* {slot0Data && (
                       <div className="text-sm text-gray-500">
                         当前 Tick: {slot0Data.tick}
                       </div>
-                    )}
+                    )} */}
                   </Card.Content>
                 </Card>
               </div>
