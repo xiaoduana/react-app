@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Modal,
   Button,
@@ -43,12 +43,12 @@ const TOKEN_CONFIG: Record<
     name: "MNTokenB",
   },
   "0x86B5df6FF459854ca91318274E47F4eEE245CF28": {
-    symbol: "MNTokenC",
+    symbol: "MNTC",
     decimals: 6,
     name: "MNTokenC",
   },
   "0x7af86B1034AC4C925Ef5C3F637D1092310d83F03": {
-    symbol: "MNTokenD",
+    symbol: "MNTD",
     decimals: 18,
     name: "MNTokenD",
   },
@@ -207,26 +207,37 @@ export function AddLiquidityModal({
     hash: mintHash,
   });
 
+  useEffect(() => {
+    refetchAllowance0()
+  }, [token0Address])
+  useEffect(() => {
+    refetchAllowance1()
+  }, [token1Address])
+
   // 计算是否需要授权
   const needApprove0 = useMemo(() => {
+    if (!allowance0) return true;
     if (!amount0 || !allowance0) return false;
     const amount0Raw = parseUnits(amount0, getTokenInfo(token0Address).decimals);
+    console.log(allowance0 < amount0Raw)
     return allowance0 < amount0Raw;
   }, [amount0, allowance0, token0Address]);
 
   const needApprove1 = useMemo(() => {
+    if (!allowance1) return true;
     if (!amount1 || !allowance1) return false;
     const amount1Raw = parseUnits(amount1, getTokenInfo(token1Address).decimals);
+    console.log(allowance1 < amount1Raw)
     return allowance1 < amount1Raw;
   }, [amount1, allowance1, token1Address]);
 
   // 根据价格计算 tick
-  const priceToTick = useCallback((price: number, token0Decimals: number, token1Decimals: number) => {
-    // 调整价格以考虑 decimals
-    const adjustedPrice = price * Math.pow(10, token1Decimals - token0Decimals);
-    // tick = log(price) / log(1.0001)
-    return Math.floor(Math.log(adjustedPrice) / Math.log(1.0001));
-  }, []);
+  // const priceToTick = useCallback((price: number, token0Decimals: number, token1Decimals: number) => {
+  //   // 调整价格以考虑 decimals
+  //   const adjustedPrice = price * Math.pow(10, token1Decimals - token0Decimals);
+  //   // tick = log(price) / log(1.0001)
+  //   return Math.floor(Math.log(adjustedPrice) / Math.log(1.0001));
+  // }, []);
 
   // 计算流动性
   // const calculateLiquidity = useCallback(async () => {
@@ -381,6 +392,10 @@ export function AddLiquidityModal({
       functionName: "approve",
       args: [NONFUNGIBLE_POSITION_MANAGER as `0x${string}`, amountRaw],
     });
+    setToken0Address("");
+    setToken1Address("");
+    setAmount0("");
+    setAmount1("");
   };
 
   // 处理添加流动性
@@ -441,9 +456,9 @@ export function AddLiquidityModal({
       setToken1Address("");
       setAmount0("");
       setAmount1("");
-      setPriceLower("");
-      setPriceUpper("");
-      setLiquidityInfo(null);
+      // setPriceLower("");
+      // setPriceUpper("");
+      // setLiquidityInfo(null);
       onOpenChange(false);
       onSuccess?.();
     }
@@ -468,15 +483,14 @@ export function AddLiquidityModal({
     amount0 &&
     amount1 &&
     Number(amount0) > 0 &&
-    Number(amount1) > 0 &&
-    priceLower &&
-    priceUpper &&
-    Number(priceLower) > 0 &&
-    Number(priceUpper) > Number(priceLower)
+    Number(amount1) > 0
+  // && priceLower &&
+  // priceUpper &&
+  // Number(priceLower) > 0 &&
+  // Number(priceUpper) > Number(priceLower)
   // && liquidityInfo;
 
   const isProcessing = isApproving0 || isApproving1 || isMinting || isConfirming;
-  console.log("isValid", isValid, "isProcessing", isProcessing)
   const needAnyApprove = needApprove0 || needApprove1;
 
   return (
@@ -602,7 +616,7 @@ export function AddLiquidityModal({
               </div>
 
               {/* 价格区间 */}
-              <div>
+              {false && <div>
                 <div className="font-medium mb-2">Set price range</div>
                 <Card className="w-full" variant="secondary">
                   <Card.Content className="space-y-3">
@@ -630,10 +644,10 @@ export function AddLiquidityModal({
                     )} */}
                   </Card.Content>
                 </Card>
-              </div>
+              </div>}
 
               {/* 滑点设置 */}
-              <div>
+              {/* <div>
                 <div className="font-medium mb-2">滑点容忍度</div>
                 <div className="flex gap-2">
                   {[0.1, 0.5, 1].map((value) => (
@@ -654,7 +668,7 @@ export function AddLiquidityModal({
                     placeholder="自定义"
                   />
                 </div>
-              </div>
+              </div> */}
 
               {/* 计算结果显示 */}
               {isCalculating && (

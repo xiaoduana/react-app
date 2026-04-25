@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ethers } from 'ethers'
 import { useReadContracts } from 'wagmi';
 import { erc20Abi } from 'viem';
+import { useAppStore } from '@/app/store/index'
 
 declare global {
   interface Window {
@@ -83,7 +84,7 @@ export const getContract = async ({
 // 完整的余额格式化工具类
 export class BalanceFormatter {
   // 标准格式化
-  static format(balanceWei: any, options: { decimals?: number; useGrouping?: boolean; symbol?: string } = {}) {
+  static format(balanceWei: any, options: { decimals?: any; useGrouping?: boolean; symbol?: string } = {}) {
     const {
       decimals = 4,
       useGrouping = true,
@@ -125,21 +126,20 @@ export class BalanceFormatter {
 }
 
 export const getTokenInfo = (positionsData: any) => {
+  const { walletAdress } = useAppStore()
   const map = new Map();
   // 1. 从 positions 中收集所有唯一的 token 地址
   const uniqueTokenAddresses = useMemo(() => {
     if (!positionsData) return [];
 
     const addresses = new Set<string>();
-    for (const position of positionsData) {
-      if (position.status === 'success' && position.result) {
-        const [, , token0, token1] = position.result;
-        addresses.add(token0.toLowerCase());
-        addresses.add(token1.toLowerCase());
-      }
+    for (let i = 0; i < positionsData.length; i++) {
+      addresses.add(positionsData[i].token0);
+      addresses.add(positionsData[i].token1);
     }
     return Array.from(addresses);
   }, [positionsData]);
+
 
   // 2. 为每个 token 创建两个调用：symbol 和 decimals
   const tokenInfoCalls = useMemo(() => {
@@ -154,6 +154,12 @@ export const getTokenInfo = (positionsData: any) => {
         address: tokenAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: 'decimals',
+      });
+      calls.push({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [walletAdress]
       });
     }
     return calls;
@@ -170,13 +176,15 @@ export const getTokenInfo = (positionsData: any) => {
     if (!tokenInfoData) return new Map();
     for (let i = 0; i < uniqueTokenAddresses.length; i++) {
       const tokenAddress = uniqueTokenAddresses[i];
-      const symbolResult = tokenInfoData[i * 2];
-      const decimalsResult = tokenInfoData[i * 2 + 1];
+      const symbolResult = tokenInfoData[i * 3];
+      const decimalsResult = tokenInfoData[i * 3 + 1];
+      const balanceOfResult = tokenInfoData[i * 3 + 2];
 
       const symbol = symbolResult?.status === 'success' ? symbolResult.result : 'Unknown';
       const decimals = decimalsResult?.status === 'success' ? decimalsResult.result : 18;
+      const balanceOf = balanceOfResult?.status === 'success' ? BalanceFormatter.format(balanceOfResult.result, { decimals: decimals, symbol: "" }) : 0;
 
-      map.set(tokenAddress, { symbol, decimals });
+      map.set(tokenAddress, { symbol, decimals, balanceOf });
     }
     return map;
   }, [tokenInfoData, uniqueTokenAddresses]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pagination, Table, Button, Modal, Card, Input, ListBox, Select } from "@heroui/react";
+import { Pagination, Table, Button } from "@heroui/react";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useReadContracts, useReadContract } from 'wagmi';
@@ -9,6 +9,7 @@ import { useReadContracts, useReadContract } from 'wagmi';
 import { positionAbi as abi, poolAbi } from "../abi";
 // import { useAppStore } from '@/app/store/index';
 // import { useChainId } from 'wagmi';
+import { getTokenInfo } from '@/utils/base'
 
 import { AddLiquidityModal } from "./AddLiquidityModal";
 
@@ -63,34 +64,51 @@ interface Pool {
   tickLower: number;
   tickUpper: number;
   liquidity: bigint;
-  tick: number
+  tick: number,
+  index: any
   // 根据实际返回值补充其他字段
 }
 
+function getSymbol(str: any, map: any) {
+  const obj = map.get(str)
+  return obj ? `${obj.symbol} (${obj.balanceOf})` : str
+}
+
 // 将合约返回的 pool 数据转换为表格行数据
-function transformPoolToRow(pool: Pool, index: number) {
+function transformPoolToRow(pool: Pool, map: any, poolInfo: any) {
   // 这里的转换逻辑需要根据你的合约 `getAllPools` 实际返回的字段调整
   return {
     id: `${pool.id}`,
-    Token: `${getSymbol(pool.token0) || "Unknown"} / ${getSymbol(pool.token1) || "Unknown"}`,
+    Token: `${getSymbol(pool.token0, map) || "Unknown"} / ${getSymbol(pool.token1, map) || "Unknown"}`,
     "Fee tier": pool.fee ? `${Number(pool.fee) / 10000}%` : "-",
     "Set price range": `${pool.tickLower || "-"} ~ ${pool.tickUpper || "-"}`,
-    "Current price": `${pool.tick ?? ""}`, // 可能需要另外调用函数获取当前价格
+    "Current price": `${poolInfo.get(pool.token0 + pool.token1 + pool.index) ?? ""}`, // 可能需要另外调用函数获取当前价格
     "Liquidity": pool.liquidity ? pool.liquidity.toString() : "0",
   };
-}
-
-function getSymbol(str: any) {
-  const obj = TOKEN_CONFIG[str]
-  return obj ? obj.symbol : str
 }
 
 export default function Home() {
   const [page, setPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
-
+  // 从合约获取 pools 列表
   const {
     data: poolsData,
+  } = useReadContract({
+    address: "0xddC12b3F9F7C91C79DA7433D8d212FB78d609f7B",
+    abi: poolAbi,
+    functionName: 'getAllPools',
+  });
+  const poolInfo = useMemo(() => {
+    const info = new Map()
+    if (!poolsData) return info
+    for (let index = 0; index < poolsData.length; index++) {
+      info.set(poolsData[index].token0 + poolsData[index].token1 + poolsData[index].index, poolsData[index].tick);
+    }
+    return info;
+  }, [poolsData])
+
+  const {
+    data: positionssData,
     isLoading,
     isError,
     refetch
@@ -98,16 +116,15 @@ export default function Home() {
     address: POSITION_MANAGER_ADDRESS,
     abi: abi,
     functionName: 'getAllPositions',
-    args: [],
   });
+  const tokenInfos = getTokenInfo(positionssData)
   // 将合约数据转换为表格数据
   const tableRows = useMemo(() => {
-    if (!poolsData || !Array.isArray(poolsData)) {
+    if (!positionssData || !Array.isArray(positionssData)) {
       return [];
     }
-    // 假设 poolsData 是 Pool 类型的数组
-    return poolsData.map((pool: Pool, index: number) => transformPoolToRow(pool, index));
-  }, [poolsData]);
+    return positionssData.map((pool: Pool, index: number) => transformPoolToRow(pool, tokenInfos, poolInfo));
+  }, [positionssData, tokenInfos, poolInfo]);
 
   // 分页计算
   const totalPages = Math.ceil(tableRows.length / ROWS_PER_PAGE);
@@ -144,19 +161,6 @@ export default function Home() {
     );
   }
 
-  // if (positionsWithDetails.length === 0 && !isLoading) {
-  //   return (
-  //     <div className="flex flex-col justify-center items-center h-64 gap-4">
-  //       <p className="text-gray-500">No liquidity positions found</p>
-  //       <Button onPress={toggleModal}>Add Your First Position</Button>
-  //       <AddLiquidityModal
-  //         isOpen={isOpen}
-  //         onOpenChange={toggleModal}
-  //         onSuccess={handleSuccess}
-  //       />
-  //     </div>
-  //   );
-  // }
 
   return (
     <div>

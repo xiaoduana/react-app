@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useReadContract } from "wagmi";
 import { poolAbi as abi } from "../abi"
+import { getTokenInfo } from '@/utils/base'
 
 const columns = [
   { id: "Token", name: "Token" },
@@ -28,12 +29,17 @@ interface Pool {
   // 根据实际返回值补充其他字段
 }
 
+function getSymbol(str: any, map: any) {
+  const obj = map.get(str)
+  return obj ? `${obj.symbol} (${obj.balanceOf})` : str
+}
+
 // 将合约返回的 pool 数据转换为表格行数据
-function transformPoolToRow(pool: Pool, index: number) {
+function transformPoolToRow(pool: Pool, index: number, map: any) {
   // 这里的转换逻辑需要根据你的合约 `getAllPools` 实际返回的字段调整
   return {
     id: index,
-    Token: `${pool.token0 || "Unknown"}/${pool.token1 || "Unknown"}`,
+    Token: `${getSymbol(pool.token0, map) || "Unknown"}/${getSymbol(pool.token1, map) || "Unknown"}`,
     "Fee tier": pool.fee ? `${Number(pool.fee) / 10000}%` : "-",
     "Set price range": `${pool.tickLower || "-"} ~ ${pool.tickUpper || "-"}`,
     "Current price": `${pool.tick}`, // 可能需要另外调用函数获取当前价格
@@ -56,6 +62,8 @@ export default function Home() {
     functionName: 'getAllPools',
     args: [],
   });
+  const tokenInfos = getTokenInfo(poolsData)
+  console.log(poolsData)
 
   // 将合约数据转换为表格数据
   const pools = useMemo(() => {
@@ -63,8 +71,8 @@ export default function Home() {
       return [];
     }
     // 假设 poolsData 是 Pool 类型的数组
-    return poolsData.map((pool: Pool, index: number) => transformPoolToRow(pool, index));
-  }, [poolsData]);
+    return poolsData.map((pool: Pool, index: number) => transformPoolToRow(pool, index, tokenInfos));
+  }, [poolsData, tokenInfos]);
 
   // 计算分页相关
   const totalPages = Math.ceil(pools.length / ROWS_PER_PAGE);
