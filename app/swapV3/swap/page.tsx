@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect, useMemo } from "react";
-import { useWriteContract, useReadContract } from "wagmi";
+import { useReadContract } from "wagmi";
+import { simulateContract, writeContract, waitForTransactionReceipt } from '@wagmi/core';
+import { config } from '@/app/config/wagmi-config'; // 需要导入配置
 import { parseUnits, formatUnits, erc20Abi } from "viem";
 import { useAppStore } from '@/app/store/index';
 import {
@@ -75,8 +77,6 @@ export default function Home() {
     }, {})
   }, [poolsData])
 
-  const { writeContract, isPending } = useWriteContract();
-
   // 获取可用的 token 列表
   const availableTokens = useMemo(() => {
     return Object.entries(TOKEN_CONFIG).map(([address, info]) => ({
@@ -110,7 +110,7 @@ export default function Home() {
     refetchAllowance1()
   }, [token1Address])
 
-  const quote = (funcName: any, type: string) => {
+  const quote = async (funcName: any, type: string) => {
     if (!token0Address || !token1Address) {
       console.error("Token addresses missing");
       return;
@@ -119,7 +119,7 @@ export default function Home() {
     // 安全获取 indexPath
     const poolKey = token0Address + token1Address;
     const pool = poolInfo[poolKey];
-    const indexPath = pool?.[0]?.[0] ?? 0;
+    const indexPath = pool?.[0]?.[1] ?? 0;
 
     // 安全处理 amount0
     let amountIn: bigint;
@@ -129,42 +129,72 @@ export default function Home() {
       console.error("Invalid amount0:", amount0);
       return;
     }
-
+    const amountOutMin = parseUnits('250', 6)
     const sqrtPriceLimit = BigInt(0);
-    console.log("Quote params:", {
-      token0Address,
+    console.log({
+      tokenIn: token0Address,
       token1Address,
       indexPath,
       amountIn: amountIn.toString(),
       sqrtPriceLimit: sqrtPriceLimit.toString()
     });
 
-    let params: any[] = [];
+    let params: any;
     if (type === "quote") {
-      params = [
-        token0Address,
-        token1Address,
-        [indexPath],
+      params = {
+        tokenIn: token0Address,
+        tokenOut: token1Address,
+        indexPath: [indexPath],
         amountIn,
-        sqrtPriceLimit
-      ];
+        sqrtPriceLimitX96: sqrtPriceLimit
+      };
     } else {
-      params = [];
+      params = {
+        tokenIn: token0Address,
+        tokenOut: token1Address,
+        indexPath: [indexPath],
+        recipient: walletAdress,
+        deadline: BigInt(Math.floor(Date.now() / 1000) + 60 * 20),
+        amountIn: amountIn,
+        amountOutMinimum: amountOutMin,
+        sqrtPriceLimitX96: sqrtPriceLimit
+      };
     }
 
     try {
-      const {
-        data: amountOut,      // 返回的数据
-        error,                // 错误信息
-        isPending,            // 加载状态
-        refetch              // 手动重新获取
-      } = useReadContract({
+      // writeContract({
+      //   address: ROUTER_SWAP_ADRESS as `0x${string}`,
+      //   abi: abi,
+      //   functionName: funcName,
+      //   args: [params],
+      // });
+
+      // 先模拟调用，检查是否会失败
+      const { request } = await simulateContract(config, {
         address: ROUTER_SWAP_ADRESS as `0x${string}`,
         abi: abi,
         functionName: funcName,
-        args: params as any,
+        args: [params],
+        account: walletAdress as `0x${string}`,
       });
-      console.log(amountOut)
+
+      // console.log("模拟成功，准备发送交易");
+
+      // 2. 发送交易（弹出钱包）
+      const hash = await writeContract(config, {
+        address: ROUTER_SWAP_ADRESS as `0x${string}`,
+        abi: abi,
+        functionName: funcName,
+        args: [params],
+        account: walletAdress as `0x${string}`,
+      });
+      console.log("Transaction hash:", hash);
+
+      // 可选：等待确认
+      const receipt = await waitForTransactionReceipt(config, { hash });
+      console.log("交易已确认:", receipt);
+
+      return hash;
     } catch (error) {
       console.error("Write contract failed:", error);
     }
@@ -178,13 +208,21 @@ export default function Home() {
       } else {
         type = "quoteExactOutput"
       }
-      quote("type", "quote")
+      quote(type, "quote")
     }
 
-  }, [token0Address, token1Address, amount0, amount1])
+  }, [amount0, amount1])
 
   const submit = () => {
-    console.log("----")
+    if (amount0 || amount1) {
+      let type = ""
+      if (amount0) {
+        type = "exactInput"
+      } else {
+        type = "exactOutput"
+      }
+      quote(type, "exact")
+    }
   }
 
   return (
