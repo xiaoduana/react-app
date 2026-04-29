@@ -134,13 +134,6 @@ export default function Home() {
     }
     const amountOutMin = parseUnits('250', 6)
     const sqrtPriceLimit = BigInt(0);
-    console.log({
-      tokenIn: token0Address,
-      token1Address,
-      indexPath,
-      amountIn: amountIn.toString(),
-      sqrtPriceLimit: sqrtPriceLimit.toString()
-    });
 
     let params: any;
     if (type === "quote") {
@@ -163,6 +156,7 @@ export default function Home() {
         sqrtPriceLimitX96: sqrtPriceLimit
       };
     }
+    console.log(params);
 
     try {
       // writeContract({
