@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useReadContract } from "wagmi";
 import { simulateContract, writeContract, waitForTransactionReceipt } from '@wagmi/core';
 import { config } from '@/app/config/wagmi-config'; // 需要导入配置
 import { parseUnits, formatUnits, erc20Abi } from "viem";
 import { useAppStore } from '@/app/store/index';
+import { safeCompare } from "@/utils/base"
 import {
   Button,
   Input,
@@ -51,6 +52,8 @@ export default function Home() {
   const [token1Address, setToken1Address] = useState<string>("");
   const [amount0, setAmount0] = useState<string>("");
   const [amount1, setAmount1] = useState<string>("");
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     data: poolsData,
@@ -201,19 +204,39 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (amount0 || amount1) {
-      let type = ""
-      if (amount0) {
-        type = "quoteExactInput"
-      } else {
-        type = "quoteExactOutput"
-      }
-      quote(type, "quote")
+    // 清除之前的定时器
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
     }
 
+    // 设置新的定时器
+    timerRef.current = setTimeout(() => {
+      if (amount0 || amount1) {
+        let type = ""
+        if (amount0) {
+          type = "quoteExactInput"
+        } else {
+          type = "quoteExactOutput"
+        }
+        quote(type, "quote")
+      }
+    }, 500);
+
+    // 组件卸载时清理定时器
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
   }, [amount0, amount1])
 
   const submit = () => {
+    if (safeCompare(amount0, allowance0) === 1) {
+      alert("输入金额不能大于余额")
+    }
+    if (safeCompare(amount1, allowance1) === 1) {
+      alert("输入金额不能大于余额")
+    }
     if (amount0 || amount1) {
       let type = ""
       if (amount0) {

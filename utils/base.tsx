@@ -191,4 +191,26 @@ export const getTokenInfo = (positionsData: any) => {
   return tokenInfoMap
 }
 
+export function safeCompare(str: string, bigInt: any) {
+  // 去除首尾空格
+  str = str.trim();
+
+  // 检查是否为空字符串
+  if (str === "") return null;
+
+  // 检查是否为有效的整数格式（可选正负号）
+  const isValidInteger = /^[+-]?\d+$/.test(str);
+  if (!isValidInteger) return null;
+
+  try {
+    const strAsBigInt = BigInt(str);
+
+    if (strAsBigInt > bigInt) return 1;
+    if (strAsBigInt < bigInt) return -1;
+    return 0;
+  } catch (e) {
+    return null;
+  }
+}
+
 
