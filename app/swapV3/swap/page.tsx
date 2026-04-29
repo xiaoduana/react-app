@@ -227,9 +227,11 @@ export default function Home() {
   const submit = () => {
     if (safeCompare(amount0, allowance0) === 1) {
       alert("输入金额不能大于余额")
+      return
     }
     if (safeCompare(amount1, allowance1) === 1) {
       alert("输入金额不能大于余额")
+      return
     }
     if (amount0 || amount1) {
       let type = ""
