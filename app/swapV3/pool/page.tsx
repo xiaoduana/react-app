@@ -63,7 +63,6 @@ export default function Home() {
     args: [],
   });
   const tokenInfos = getTokenInfo(poolsData)
-  console.log(poolsData)
 
   // 将合约数据转换为表格数据
   const pools = useMemo(() => {

@@ -2,13 +2,9 @@
 
 import { Pagination, Table, Button } from "@heroui/react";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useReadContracts, useReadContract } from 'wagmi';
-// import { Pool, Position } from '@uniswap/v3-sdk';
-// import { Token } from '@uniswap/sdk-core';
+import { useMemo, useState, useCallback } from "react";
+import { useReadContract } from 'wagmi';
 import { positionAbi as abi, poolAbi } from "../abi";
-// import { useAppStore } from '@/app/store/index';
-// import { useChainId } from 'wagmi';
 import { getTokenInfo } from '@/utils/base'
 
 import { AddLiquidityModal } from "./AddLiquidityModal";

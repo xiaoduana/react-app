@@ -18,7 +18,13 @@ import { swapRouter as abi, poolAbi } from "../abi";
 
 // 合约地址
 const ROUTER_SWAP_ADRESS = "0xD2c220143F5784b3bD84ae12747d97C8A36CeCB2";
-
+const MIN_SQRT_PRICE = BigInt(4295128739)
+const MAX_SQRT_PRICE = BigInt(1461446703485210103287273052203988822378723970342)
+const getPoolId = (arr: any[]) => {
+  if (!arr || arr.length === 0) return [];
+  let result = arr.map((item: any) => item[1]);
+  return result;
+}
 // Token 配置
 const TOKEN_CONFIG: Record<
   string,
@@ -53,7 +59,9 @@ export default function Home() {
   const [amount0, setAmount0] = useState<string>("");
   const [amount1, setAmount1] = useState<string>("");
 
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swapTypeRef = useRef<"exactInput" | "exactOutput">("exactInput");
+  const isQuotingRef = useRef(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const {
     data: poolsData,
@@ -106,34 +114,51 @@ export default function Home() {
     query: { enabled: !!token1Address && !!walletAdress },
   });
 
+  const { data: decimals0, refetch: refetchdecimals0 } = useReadContract({
+    address: token0Address as `0x${string}`,
+    abi: erc20Abi,
+    functionName: "decimals",
+    query: { enabled: !!token0Address && !!walletAdress },
+  });
+
+  const { data: decimals1, refetch: refetchdecimals1 } = useReadContract({
+    address: token1Address as `0x${string}`,
+    abi: erc20Abi,
+    functionName: "decimals",
+    query: { enabled: !!token1Address && !!walletAdress },
+  });
+
   useEffect(() => {
     refetchAllowance0()
+    refetchdecimals0()
   }, [token0Address])
   useEffect(() => {
     refetchAllowance1()
+    refetchdecimals1()
   }, [token1Address])
 
-  const quote = async (funcName: any, type: string) => {
+  const quoteFunc = async (funcName: any, type: string, amountIn: bigint) => {
+
     if (!token0Address || !token1Address) {
       console.error("Token addresses missing");
       return;
     }
+    isQuotingRef.current = true;
 
     // 安全获取 indexPath
     const poolKey = token0Address + token1Address;
     const pool = poolInfo[poolKey];
-    const indexPath = pool?.[0]?.[1] ?? 0;
+    console.log("对应的池子信息:", pool)
 
-    // 安全处理 amount0
-    let amountIn: bigint;
-    try {
-      amountIn = typeof amount0 === 'bigint' ? amount0 : BigInt(amount0);
-    } catch (e) {
-      console.error("Invalid amount0:", amount0);
-      return;
-    }
-    const amountOutMin = parseUnits('250', 6)
-    const sqrtPriceLimit = BigInt(0);
+    const indexPath = getPoolId(pool)[0]; // 取第一个池子的 indexPath，实际使用中可能需要更复杂的逻辑来选择合适的池子
+    console.log("indexPath:", indexPath)
+    // const zeroForOne =
+    //   token0Address.toLowerCase() < token1Address.toLowerCase();
+
+    // const sqrtPriceLimitX96 = zeroForOne
+    //   ? MIN_SQRT_PRICE + BigInt(1)
+    //   : MAX_SQRT_PRICE - BigInt(1); // 设置一个合理的价格限制，避免过滑点
+    const sqrtPriceLimitX96 = MIN_SQRT_PRICE + BigInt(1); // 设置一个合理的价格限制，避免过滑点
 
     let params: any;
     if (type === "quote") {
@@ -141,9 +166,39 @@ export default function Home() {
         tokenIn: token0Address,
         tokenOut: token1Address,
         indexPath: [indexPath],
-        amountIn,
-        sqrtPriceLimitX96: sqrtPriceLimit
+        sqrtPriceLimitX96: sqrtPriceLimitX96
       };
+      if (funcName === "quoteExactInput") {
+        params.amountIn = amountIn;
+      } else {
+        params.amountOut = amountIn;
+      }
+      console.log("模拟调用参数:", params);
+      console.log("模拟调用函数:", funcName);
+      try {
+        // 先模拟调用，检查是否会失败
+        const { result } = await simulateContract(config, {
+          address: ROUTER_SWAP_ADRESS as `0x${string}`,
+          abi: abi,
+          functionName: funcName,
+          args: [params],
+          account: walletAdress as `0x${string}`,
+        });
+        console.log(funcName)
+        console.log("模拟成功，准备发送交易", result);
+        const formattedResult =
+          funcName === "quoteExactInput"
+            ? formatUnits(result as bigint, decimals1 ?? 18) // tokenOut
+            : formatUnits(result as bigint, decimals0 ?? 18); // tokenOut
+
+        console.log("模拟成功，报价结果:", formattedResult);
+
+        funcName === "quoteExactInput"
+          ? setAmount1(formattedResult)
+          : setAmount0(formattedResult);
+      } catch (error) {
+        console.error("Write contract failed:", error);
+      }
     } else {
       params = {
         tokenIn: token0Address,
@@ -151,80 +206,44 @@ export default function Home() {
         indexPath: [indexPath],
         recipient: walletAdress,
         deadline: BigInt(Math.floor(Date.now() / 1000) + 60 * 20),
-        amountIn: amountIn,
-        amountOutMinimum: amountOutMin,
-        sqrtPriceLimitX96: sqrtPriceLimit
+        sqrtPriceLimitX96: sqrtPriceLimitX96
       };
-    }
-    console.log(params);
+      try {
+        if (!decimals1 || !decimals0) return;
+        if (funcName === "exactInput") {
+          params.amountIn = amountIn;
+          params.amountOutMinimum = parseUnits(amount1, decimals1) * BigInt(99) / BigInt(100); // 设置一个合理的滑点容忍度，例如 1%
+        } else {
+          params.amountOut = amountIn;
+          params.amountInMaximum = parseUnits(amount0, decimals0) * BigInt(105) / BigInt(100); // 设置一个合理的滑点容忍度，例如 1%
+        }
 
-    try {
-      // writeContract({
-      //   address: ROUTER_SWAP_ADRESS as `0x${string}`,
-      //   abi: abi,
-      //   functionName: funcName,
-      //   args: [params],
-      // });
+        console.log(params);
+        console.log("funcName", funcName);
+        const hash = await writeContract(config, {
+          address: ROUTER_SWAP_ADRESS as `0x${string}`,
+          abi: abi,
+          functionName: funcName,
+          args: [params],
+          account: walletAdress as `0x${string}`,
+          gas: BigInt(800000),
+        });
+        console.log("Transaction hash:", hash);
 
-      // 先模拟调用，检查是否会失败
-      const { request } = await simulateContract(config, {
-        address: ROUTER_SWAP_ADRESS as `0x${string}`,
-        abi: abi,
-        functionName: funcName,
-        args: [params],
-        account: walletAdress as `0x${string}`,
-      });
+        // 可选：等待确认
+        const receipt = await waitForTransactionReceipt(config, { hash });
+        console.log("交易已确认:", receipt);
 
-      // console.log("模拟成功，准备发送交易");
-
-      // 2. 发送交易（弹出钱包）
-      const hash = await writeContract(config, {
-        address: ROUTER_SWAP_ADRESS as `0x${string}`,
-        abi: abi,
-        functionName: funcName,
-        args: [params],
-        account: walletAdress as `0x${string}`,
-      });
-      console.log("Transaction hash:", hash);
-
-      // 可选：等待确认
-      const receipt = await waitForTransactionReceipt(config, { hash });
-      console.log("交易已确认:", receipt);
-
-      return hash;
-    } catch (error) {
-      console.error("Write contract failed:", error);
+        setIsProcessing(false);
+      } catch (error) {
+        console.error("Write contract failed:", error);
+        setIsProcessing(false);
+      }
     }
   }
 
-  useEffect(() => {
-    // 清除之前的定时器
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-
-    // 设置新的定时器
-    timerRef.current = setTimeout(() => {
-      if (amount0 || amount1) {
-        let type = ""
-        if (amount0) {
-          type = "quoteExactInput"
-        } else {
-          type = "quoteExactOutput"
-        }
-        quote(type, "quote")
-      }
-    }, 500);
-
-    // 组件卸载时清理定时器
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [amount0, amount1])
-
   const submit = () => {
+    setIsProcessing(true);
     if (safeCompare(amount0, allowance0) === 1) {
       alert("输入金额不能大于余额")
       return
@@ -233,16 +252,58 @@ export default function Home() {
       alert("输入金额不能大于余额")
       return
     }
+    if (!decimals1 || !decimals0) return;
     if (amount0 || amount1) {
-      let type = ""
-      if (amount0) {
-        type = "exactInput"
+      let amountIn: bigint;
+      if (swapTypeRef.current === "exactInput") {
+        amountIn = typeof amount0 === 'bigint' ? amount0 : parseUnits(amount0, decimals0 ?? 18);
       } else {
-        type = "exactOutput"
+        amountIn = typeof amount1 === 'bigint' ? amount1 : parseUnits(amount1, decimals1 ?? 18);
       }
-      quote(type, "exact")
+      quoteFunc(swapTypeRef.current, "exact", amountIn)
     }
   }
+  const handleSetAmount0 = (value: string) => {
+    setAmount0(value);
+  }
+  useEffect(() => {
+    if (isQuotingRef.current) {
+      isQuotingRef.current = false;
+      return;
+    }
+    if (!decimals0) return;
+    if (!amount0) return;
+
+    const timer = setTimeout(() => {
+      let type = "quoteExactInput";
+      let amountIn = typeof amount0 === 'bigint' ? amount0 : parseUnits(amount0, decimals0);
+      swapTypeRef.current = "exactInput";
+      quoteFunc(type, "quote", amountIn);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [amount0]); // amount0 变化时才触发
+  const handleSetAmount1 = (value: string) => {
+    setAmount1(value);
+  }
+  useEffect(() => {
+    if (isQuotingRef.current) {
+      isQuotingRef.current = false;
+      return;
+    }
+    if (!decimals1) return;
+    if (!amount1) return;
+
+    const timer = setTimeout(() => {
+      let type = "quoteExactOutput"
+      if (!decimals1) return;
+      let amountIn = typeof amount1 === 'bigint' ? amount1 : parseUnits(amount1, decimals1);
+      swapTypeRef.current = "exactOutput";
+      quoteFunc(type, "quote", amountIn)
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [amount1]); // amount1 变化时才触发
 
   return (
     <div>
@@ -254,7 +315,7 @@ export default function Home() {
               <Input
                 type="number"
                 value={amount0}
-                onChange={(e) => setAmount0(e.target.value)}
+                onChange={(e) => handleSetAmount0(e.target.value)}
                 placeholder="0.0"
                 className="w-full"
                 disabled={!token0Address}
@@ -289,6 +350,8 @@ export default function Home() {
             </div>
             <div className="w-3/12 ml-10">
               balanceOf:{allowance0 ?? 0}
+              -
+              decimals:{decimals0 ?? 0}
             </div>
           </div>
           <div className="flex justify-between items-center">
@@ -296,7 +359,7 @@ export default function Home() {
               <Input
                 type="number"
                 value={amount1}
-                onChange={(e) => setAmount1(e.target.value)}
+                onChange={(e) => handleSetAmount1(e.target.value)}
                 placeholder="0.0"
                 className="w-full"
                 disabled={!token1Address}
@@ -331,6 +394,8 @@ export default function Home() {
             </div>
             <div className="w-3/12 ml-10">
               balanceOf:{allowance1 ?? 0}
+              -
+              decimals:{decimals1 ?? 0}
             </div>
           </div>
         </Card.Content>
@@ -338,6 +403,7 @@ export default function Home() {
       <Button
         className="w-full"
         onPress={submit}
+        isDisabled={isProcessing}
         variant="primary"
       >
         确定
