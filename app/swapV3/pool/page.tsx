@@ -61,6 +61,9 @@ export default function Home() {
     abi: abi,
     functionName: 'getAllPools',
     args: [],
+    query: {
+      enabled: true
+    }
   });
   const tokenInfos = getTokenInfo(poolsData)
 

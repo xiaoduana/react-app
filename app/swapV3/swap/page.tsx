@@ -151,14 +151,19 @@ export default function Home() {
     console.log("对应的池子信息:", pool)
 
     const indexPath = getPoolId(pool)[0]; // 取第一个池子的 indexPath，实际使用中可能需要更复杂的逻辑来选择合适的池子
+    if (!indexPath) {
+      console.error("No pool found for the selected token pair");
+      alert("未找到对应的流动性池，请选择其他代币组合");
+      return;
+    }
     console.log("indexPath:", indexPath)
-    // const zeroForOne =
-    //   token0Address.toLowerCase() < token1Address.toLowerCase();
+    const zeroForOne =
+      token0Address.toLowerCase() < token1Address.toLowerCase();
 
-    // const sqrtPriceLimitX96 = zeroForOne
-    //   ? MIN_SQRT_PRICE + BigInt(1)
-    //   : MAX_SQRT_PRICE - BigInt(1); // 设置一个合理的价格限制，避免过滑点
-    const sqrtPriceLimitX96 = MIN_SQRT_PRICE + BigInt(1); // 设置一个合理的价格限制，避免过滑点
+    const sqrtPriceLimitX96 = zeroForOne
+      ? MIN_SQRT_PRICE + BigInt(1)
+      : MAX_SQRT_PRICE - BigInt(1); // 设置一个合理的价格限制，避免过滑点
+    // const sqrtPriceLimitX96 = MIN_SQRT_PRICE + BigInt(1); // 设置一个合理的价格限制，避免过滑点
 
     let params: any;
     if (type === "quote") {

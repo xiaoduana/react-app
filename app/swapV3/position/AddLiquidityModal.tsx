@@ -429,7 +429,7 @@ export function AddLiquidityModal({
       token0: token0 as `0x${string}`,
       token1: token1 as `0x${string}`,
       fee: feeTier,
-      index: 10,
+      index: 0,
       // tickLower: liquidityInfo.tickLower,
       // tickUpper: liquidityInfo.tickUpper,
       amount0Desired: amount0Desired,

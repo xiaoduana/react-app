@@ -93,6 +93,9 @@ export default function Home() {
     address: "0xddC12b3F9F7C91C79DA7433D8d212FB78d609f7B",
     abi: poolAbi,
     functionName: 'getAllPools',
+    query: {
+      enabled: true
+    }
   });
   const poolInfo = useMemo(() => {
     const info = new Map()
@@ -112,6 +115,9 @@ export default function Home() {
     address: POSITION_MANAGER_ADDRESS,
     abi: abi,
     functionName: 'getAllPositions',
+    query: {
+      enabled: true
+    }
   });
   const tokenInfos = getTokenInfo(positionssData)
   // 将合约数据转换为表格数据
